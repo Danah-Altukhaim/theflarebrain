@@ -1,34 +1,29 @@
-// Read-only demo API for the Vercel deployment of The Brain.
-// The real backend (Fastify + Postgres + Redis + Claude + ...) is not
-// deployed here. This function serves just enough endpoints for:
-//   - the demo login flow
-//   - the Knowledge index to render with realistic entry counts
-//   - the Escalation Rules page to render all 8 entries end-to-end,
-//     exercising the UI redesign
-// Writes (POST/PATCH/DELETE) accept the request and return a success
-// shape but do not persist. The page reload after an edit will show the
-// original fixture, not the edited value. This is documented limitation
-// for a static-only demo host.
+// Fixtures and helpers shared by the demo API stub under /api/v1/*.
+// Writes do not persist; this is a read-only demo backend.
 
-type Json = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
-
-type VercelReq = {
+export type VercelReq = {
   url?: string;
   method?: string;
   headers: Record<string, string | string[] | undefined>;
   body?: unknown;
+  query: Record<string, string | string[] | undefined>;
 };
 
-type VercelRes = {
+export type VercelRes = {
   status(code: number): VercelRes;
   setHeader(name: string, value: string): void;
   end(body?: string): void;
 };
 
-const TENANT = { id: "demo-tenant", slug: "future-kid", name: "Future Kid" };
-const USER = { id: "demo-user", email: "sara@example.com", name: "Sara (Editor)", role: "CLIENT_EDITOR" };
+export const TENANT = { id: "demo-tenant", slug: "future-kid", name: "Future Kid" };
+export const USER = {
+  id: "demo-user",
+  email: "sara@example.com",
+  name: "Sara (Editor)",
+  role: "CLIENT_EDITOR",
+};
 
-const MODULES = [
+export const MODULES = [
   {
     id: "m-promotions",
     slug: "promotions",
@@ -113,7 +108,7 @@ const MODULES = [
 
 const UPDATED_AT = "2026-04-16T00:00:00.000Z";
 
-const ESCALATION_RULES: Array<{ id: string; data: Record<string, unknown>; status: string; updatedAt: string }> = [
+export const ESCALATION_RULES = [
   {
     id: "esc-complaint",
     status: "active",
@@ -196,93 +191,20 @@ const ESCALATION_RULES: Array<{ id: string; data: Record<string, unknown>; statu
   },
 ];
 
-// Fake counts so the Knowledge index matches the feel of the real data.
-// These modules are empty in the stub (just placeholders), so the list
-// pages will render an empty state.
-const STUB_COUNTS: Record<string, number> = {
-  promotions: 0,
-  branches: 0,
-  faqs: 0,
-  intents: 0,
-  partners: 0,
-  policy_matrix: 0,
-};
+export function ok<T>(res: VercelRes, data: T): void {
+  res.status(200);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.end(JSON.stringify({ success: true, data }));
+}
 
-function send(res: VercelRes, payload: Json, status = 200): void {
+export function fail(res: VercelRes, message: string, status = 400): void {
   res.status(status);
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.setHeader("cache-control", "no-store");
-  res.end(JSON.stringify(payload));
+  res.end(JSON.stringify({ success: false, error: { message } }));
 }
 
-function ok<T>(res: VercelRes, data: T): void {
-  send(res, { success: true, data } as unknown as Json);
-}
-
-function notFound(res: VercelRes, message = "not found"): void {
-  send(res, { success: false, error: { message } }, 404);
-}
-
-export default function handler(req: VercelReq, res: VercelRes): void {
-  const rawUrl = req.url ?? "/";
-  const url = new URL(rawUrl, "http://localhost");
-  const path = url.pathname;
-  const method = (req.method ?? "GET").toUpperCase();
-
-  // POST /api/v1/auth/login → accept any credentials, return a demo session.
-  if (method === "POST" && path === "/api/v1/auth/login") {
-    return ok(res, {
-      token: "demo-" + Math.random().toString(36).slice(2),
-      user: USER,
-      tenant: TENANT,
-    });
-  }
-
-  // GET /api/v1/modules
-  if (method === "GET" && path === "/api/v1/modules") {
-    return ok(res, MODULES);
-  }
-
-  // GET /api/v1/entries/:slug
-  const listMatch = path.match(/^\/api\/v1\/entries\/([^/]+)\/?$/);
-  if (listMatch && method === "GET") {
-    const slug = decodeURIComponent(listMatch[1]!);
-    if (slug === "escalation_rules") return ok(res, ESCALATION_RULES);
-    const count = STUB_COUNTS[slug] ?? 0;
-    const stubs = Array.from({ length: count }, (_, i) => ({
-      id: `${slug}-stub-${i}`,
-      data: {},
-      status: "active",
-      updatedAt: UPDATED_AT,
-    }));
-    return ok(res, stubs);
-  }
-
-  // POST /api/v1/entries/:slug → pretend to create
-  if (listMatch && method === "POST") {
-    const body = (req.body as { data?: Record<string, unknown> } | undefined) ?? {};
-    return ok(res, {
-      id: "new-" + Math.random().toString(36).slice(2),
-      data: body.data ?? {},
-      status: "active",
-      updatedAt: new Date().toISOString(),
-    });
-  }
-
-  // PATCH or DELETE /api/v1/entries/:slug/:id
-  const itemMatch = path.match(/^\/api\/v1\/entries\/([^/]+)\/([^/]+)\/?$/);
-  if (itemMatch && method === "PATCH") {
-    const body = (req.body as { data?: Record<string, unknown> } | undefined) ?? {};
-    return ok(res, {
-      id: itemMatch[2],
-      data: body.data ?? {},
-      status: "active",
-      updatedAt: new Date().toISOString(),
-    });
-  }
-  if (itemMatch && method === "DELETE") {
-    return ok(res, { id: itemMatch[2] });
-  }
-
-  return notFound(res, `no stub for ${method} ${path}`);
+export function methodNotAllowed(res: VercelRes): void {
+  fail(res, "method not allowed", 405);
 }
