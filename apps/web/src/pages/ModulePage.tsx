@@ -551,7 +551,7 @@ export function ModulePage() {
             entry={editing}
             isNew={isNewEntry}
             channelOptions={
-              selectOptions.channel ?? ["human_chat", "phone", "email", "whatsapp"]
+              selectOptions.channel ?? ["human_chat", "whatsapp"]
             }
             onClose={() => { setEditing(null); setIsNewEntry(false); }}
             onSaved={() => {
@@ -710,7 +710,7 @@ function rowTitle(d: Record<string, unknown>): string {
   return stripIcons(fallback ?? "(untitled)");
 }
 
-const HIDDEN_TABLE_KEYS = new Set(["hours_ramadan"]);
+const HIDDEN_TABLE_KEYS = new Set(["hours_ramadan", "status"]);
 
 function deriveColumns(
   entries: Entry[],
@@ -959,9 +959,6 @@ function EntryTable({
                   <td className="px-4 py-3 align-middle">
                     <div className="text-[13.5px] font-medium text-apple-text line-clamp-2 max-w-[260px]">
                       {title}
-                    </div>
-                    <div className="sm:hidden mt-1">
-                      <span className={`badge ${badgeFor(e.status)}`}>{e.status}</span>
                     </div>
                   </td>
                   {cols.map((c) => (
@@ -1447,12 +1444,6 @@ function EscalationRuleCard({
               </div>
             </div>
           )}
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.06em] font-medium text-apple-tertiary mb-0.5">
-              Escalates to
-            </div>
-            <div className="text-[13px] text-apple-text">CS Team</div>
-          </div>
           {parsed.autoResponse && (
             <div className="sm:col-span-2">
               <div className="text-[11px] uppercase tracking-[0.06em] font-medium text-apple-tertiary mb-0.5">
@@ -1612,38 +1603,6 @@ function EscalationRuleEditModal({
               isAr={false}
               label="auto response"
             />
-          </div>
-          <div className="border-t border-apple-separator-light" />
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Channel</label>
-              <select
-                className="input-apple cursor-pointer"
-                value={form.channel}
-                onChange={(e) => set("channel", e.target.value)}
-              >
-                {!channelOptions.includes(form.channel) && (
-                  <option value={form.channel}>
-                    {form.channel || "Select..."}
-                  </option>
-                )}
-                {channelOptions.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Webhook URL</label>
-              <input
-                type="text"
-                className="input-apple"
-                value={form.webhook_url}
-                onChange={(e) => set("webhook_url", e.target.value)}
-                placeholder="optional"
-              />
-            </div>
           </div>
         </div>
 
