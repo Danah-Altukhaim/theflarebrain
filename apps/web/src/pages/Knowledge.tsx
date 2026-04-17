@@ -85,27 +85,27 @@ export function Knowledge() {
     <div className="space-y-6">
       {/* Hero greeting */}
       <div
-        className="relative overflow-hidden rounded-apple-lg border border-[#e0e6f0] px-7 py-6 bg-cover bg-center bg-no-repeat"
+        className="relative overflow-hidden rounded-apple-lg border border-[#e0e6f0] px-4 py-5 sm:px-7 sm:py-6 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/hero-bg.png')" }}
       >
         <div className="relative z-10">
-          <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-apple-text">
+          <h1 className="text-[22px] sm:text-[26px] font-semibold tracking-[-0.02em] text-apple-text">
             Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>
-          <p className="text-[14px] text-apple-secondary mt-1 max-w-lg">
+          <p className="text-[13px] sm:text-[14px] text-apple-secondary mt-1 max-w-lg">
             Your knowledge base at a glance. Browse modules, review entries, or jump into Brain Chat to make updates.
           </p>
         </div>
 
         {/* Stats row */}
         {loadedAll && (
-          <div className="relative z-10 flex items-center gap-3 mt-5">
-            <div className="rounded-apple-lg bg-white/80 backdrop-blur-md px-5 py-3 border border-white/90 shadow-apple-sm hover:shadow-apple transition-shadow cursor-default">
-              <div className="text-[20px] font-bold text-apple-text leading-tight">{modules.length}</div>
+          <div className="relative z-10 flex items-center gap-2 sm:gap-3 mt-4 sm:mt-5">
+            <div className="rounded-apple-lg bg-white/80 backdrop-blur-md px-4 py-2.5 sm:px-5 sm:py-3 border border-white/90 shadow-apple-sm hover:shadow-apple transition-shadow cursor-default">
+              <div className="text-[18px] sm:text-[20px] font-bold text-apple-text leading-tight">{modules.length}</div>
               <div className="text-[11px] text-apple-secondary mt-0.5">Modules</div>
             </div>
-            <div className="rounded-apple-lg bg-white/80 backdrop-blur-md px-5 py-3 border border-white/90 shadow-apple-sm hover:shadow-apple transition-shadow cursor-default">
-              <div className="text-[20px] font-bold text-apple-text leading-tight">{totalEntries.toLocaleString()}</div>
+            <div className="rounded-apple-lg bg-white/80 backdrop-blur-md px-4 py-2.5 sm:px-5 sm:py-3 border border-white/90 shadow-apple-sm hover:shadow-apple transition-shadow cursor-default">
+              <div className="text-[18px] sm:text-[20px] font-bold text-apple-text leading-tight">{totalEntries.toLocaleString()}</div>
               <div className="text-[11px] text-apple-secondary mt-0.5">Total entries</div>
             </div>
           </div>

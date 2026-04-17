@@ -2,9 +2,19 @@ import { useState } from "react";
 import { api } from "../lib/api.js";
 import { Icon } from "./Icon.js";
 
+export type ParsedAction = {
+  action: string;
+  module: string;
+  fields?: Record<string, unknown>;
+  changes?: Record<string, unknown>;
+  set?: Record<string, unknown>;
+  match?: Record<string, unknown>;
+  publish_at?: string;
+};
+
 type Props = {
-  action: any;
-  onConfirm: (finalAction: any) => Promise<void>;
+  action: ParsedAction;
+  onConfirm: (finalAction: ParsedAction) => Promise<void>;
   onCancel: () => void;
 };
 
@@ -17,7 +27,7 @@ const ACTION_TONE: Record<string, string> = {
 };
 
 export function PreviewCard({ action, onConfirm, onCancel }: Props) {
-  const [draft, setDraft] = useState<any>(action);
+  const [draft, setDraft] = useState<ParsedAction>(action);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [question, setQuestion] = useState("What's your latest promo?");
   const [busy, setBusy] = useState(false);
@@ -47,10 +57,10 @@ export function PreviewCard({ action, onConfirm, onCancel }: Props) {
   }
 
   return (
-    <div className="card p-5 space-y-4 shadow-apple animate-scale-in">
-      <div className="flex items-center gap-2 text-[13px]">
+    <div className="card p-4 sm:p-5 space-y-4 shadow-apple animate-scale-in">
+      <div className="flex items-center gap-2 text-[13px] flex-wrap">
         <span className={`badge ${ACTION_TONE[draft.action] ?? "badge-gray"}`}>{draft.action}</span>
-        <span className="text-apple-secondary font-mono text-[12px]">{draft.module}</span>
+        <span className="text-apple-secondary font-mono text-[12px] truncate">{draft.module}</span>
         {draft.publish_at && (
           <span className="badge badge-orange ml-auto">
             <Icon name="calendar-check" size={11} />
@@ -85,14 +95,14 @@ export function PreviewCard({ action, onConfirm, onCancel }: Props) {
             <Icon name="magic-stick" size={14} className="text-pair" />
             <span className="label !mb-0">Test It</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               className="input-apple flex-1"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Ask the bot a question to preview the response…"
             />
-            <button onClick={testIt} disabled={busy} className="btn-secondary">
+            <button onClick={testIt} disabled={busy} className="btn-secondary w-full sm:w-auto">
               {busy ? "Testing…" : "Test It"}
             </button>
           </div>
@@ -104,7 +114,7 @@ export function PreviewCard({ action, onConfirm, onCancel }: Props) {
         </div>
       )}
 
-      <div className="flex gap-2 justify-end pt-1">
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-1">
         <button onClick={onCancel} className="btn-ghost">
           <Icon name="close" size={14} />
           Cancel

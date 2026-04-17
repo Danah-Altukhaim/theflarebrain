@@ -57,6 +57,7 @@ export default {
       boxShadow: {
         "apple-sm": "0 1px 2px rgba(0, 0, 0, 0.04)",
         apple: "0 2px 8px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.04)",
+        "apple-md": "0 4px 16px rgba(0, 0, 0, 0.07), 0 0 1px rgba(0, 0, 0, 0.04)",
         "apple-lg": "0 8px 30px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.04)",
         "apple-xl": "0 20px 60px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.06)",
       },

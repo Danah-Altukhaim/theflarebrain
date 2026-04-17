@@ -46,11 +46,21 @@ export async function runExpireCron() {
         return String(d.name ?? d.name_en ?? e.id);
       })
       .join(", ");
-    await sendWhatsApp({
-      to: tenant.weeklyReportEmail,
-      template: "expiry_warning",
-      body: `🗓 ${list.length} entries expire within 3 days: ${names}. Open The Brain to extend or update them.`,
-    });
+    try {
+      await sendWhatsApp({
+        to: tenant.weeklyReportEmail,
+        template: "expiry_warning",
+        body: `${list.length} entries expire within 3 days: ${names}. Open The Brain to extend or update them.`,
+      });
+    } catch (err) {
+      console.error(JSON.stringify({
+        level: "error",
+        cron: "expire",
+        tenantId,
+        message: `WhatsApp alert failed: ${err instanceof Error ? err.message : String(err)}`,
+        timestamp: new Date().toISOString(),
+      }));
+    }
   }
 }
 

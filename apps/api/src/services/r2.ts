@@ -18,9 +18,14 @@ export const r2 = new S3Client(r2Config);
 const bucket = process.env.R2_BUCKET ?? "brain-media";
 
 export async function putObject(key: string, body: Buffer, contentType: string) {
-  await r2.send(
-    new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }),
-  );
+  try {
+    await r2.send(
+      new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown upload error";
+    throw new Error(`R2 upload failed for key ${key}: ${message}`);
+  }
 }
 
 export async function presignedGet(key: string, expiresIn = 3600) {

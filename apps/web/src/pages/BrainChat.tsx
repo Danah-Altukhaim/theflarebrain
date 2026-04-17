@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PreviewCard } from "../components/PreviewCard.js";
+import { PreviewCard, type ParsedAction } from "../components/PreviewCard.js";
 import { VoiceButton } from "../components/VoiceButton.js";
 import { Icon } from "../components/Icon.js";
 import { api } from "../lib/api.js";
@@ -25,7 +25,7 @@ export function BrainChat() {
   const [sessionId] = useState(() => uuid());
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
-  const [card, setCard] = useState<any | null>(null);
+  const [card, setCard] = useState<ParsedAction | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -42,7 +42,7 @@ export function BrainChat() {
     setInput("");
     setTurns((t) => [...t, { role: "user", content: utterance }]);
     try {
-      const data = await api<{ card: any }>("/api/v1/chat/parse", {
+      const data = await api<{ card: ParsedAction }>("/api/v1/chat/parse", {
         method: "POST",
         body: JSON.stringify({ sessionId, utterance }),
       });
@@ -55,7 +55,7 @@ export function BrainChat() {
     }
   }
 
-  async function confirm(finalCard: any) {
+  async function confirm(finalCard: ParsedAction) {
     await api("/api/v1/chat/confirm", {
       method: "POST",
       body: JSON.stringify({ sessionId, action: finalCard }),
@@ -66,7 +66,7 @@ export function BrainChat() {
   const empty = turns.length === 0 && !card;
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-7rem)] sm:h-[calc(100vh-8rem)]">
+    <div className="max-w-3xl mx-auto flex flex-col h-[calc(100dvh-7rem)] sm:h-[calc(100dvh-8rem)]">
       {empty ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center px-4 animate-fade-in">
           <div className="w-14 h-14 rounded-apple-xl bg-pair flex items-center justify-center shadow-apple-lg mb-5">
@@ -129,10 +129,10 @@ export function BrainChat() {
         </div>
       )}
 
-      <div className="sticky bottom-0 pt-3">
-        <div className="card shadow-apple flex items-end gap-2 p-2">
+      <div className="sticky bottom-0 pt-2 sm:pt-3 pb-[env(safe-area-inset-bottom)]">
+        <div className="card shadow-apple flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2">
           <textarea
-            className="flex-1 resize-none bg-transparent outline-none px-3 py-2 text-[14px] text-apple-text placeholder:text-apple-tertiary min-h-[40px] max-h-[160px]"
+            className="flex-1 resize-none bg-transparent outline-none px-2.5 sm:px-3 py-2 text-[14px] text-apple-text placeholder:text-apple-tertiary min-h-[40px] max-h-[120px] sm:max-h-[160px]"
             placeholder="Add a promo, update hours, close a branch…"
             value={input}
             onChange={(e) => setInput(e.target.value)}

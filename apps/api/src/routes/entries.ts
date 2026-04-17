@@ -55,6 +55,7 @@ const routes: FastifyPluginAsync = async (app) => {
     const userId = (req.user as { sub: string } | undefined)?.sub;
     await req.withTenant(async (tx) => {
       const existing = await tx.entry.findUnique({ where: { id }, select: { data: true } });
+      if (!existing) throw notFound("Entry not found");
       await tx.entry.delete({ where: { id } });
       await tx.auditLog.create({
         data: {
@@ -63,11 +64,11 @@ const routes: FastifyPluginAsync = async (app) => {
           action: "delete",
           entityType: "entry",
           entityId: id,
-          diff: (existing?.data ?? null) as never,
+          diff: (existing.data ?? null) as never,
         },
       });
+      await bumpVersion(tenantId);
     });
-    await bumpVersion(tenantId);
     return { success: true, data: { deleted: id } };
   });
 

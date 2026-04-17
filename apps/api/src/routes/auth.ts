@@ -10,8 +10,12 @@ const LoginBody = z.object({
   password: z.string().min(8),
 });
 
+// Pre-computed hash used for constant-time comparison when user is not found.
+// Prevents timing attacks that could enumerate valid email addresses.
+const DUMMY_HASH = "$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012";
+
 const routes: FastifyPluginAsync = async (app) => {
-  app.post("/login", async (req, reply) => {
+  app.post("/login", { config: { rateLimit: { max: 5, timeWindow: "5 minutes" } } }, async (req, reply) => {
     const body = LoginBody.parse(req.body);
     // Pre-auth lookup: allow cross-tenant by flagging is_admin for this tx only.
     const auth = await prisma.$transaction(async (tx) => {
@@ -24,9 +28,9 @@ const routes: FastifyPluginAsync = async (app) => {
       if (!user) return null;
       return { tenant, user };
     });
-    if (!auth) throw unauthorized();
-    const ok = await bcrypt.compare(body.password, auth.user.passwordHash);
-    if (!ok) throw unauthorized();
+    // Always run bcrypt comparison to prevent timing-based email enumeration
+    const ok = await bcrypt.compare(body.password, auth?.user.passwordHash ?? DUMMY_HASH);
+    if (!auth || !ok) throw unauthorized();
 
     const { tenant, user } = auth;
     const token = app.jwt.sign({

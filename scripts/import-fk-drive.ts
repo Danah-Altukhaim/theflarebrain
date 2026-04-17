@@ -513,16 +513,12 @@ async function importIntents(s: Sheet) {
   if (!s) return;
   // headers: Intent ID | Intent Name | Description | Response Template Ref | Requires CRM? | Escalation Check? | Revenue Opportunity?
   for (const r of s.rows) {
-    const [iid, name, description, templateRef, crm, esc, rev] = r;
+    const [iid, name, description, templateRef] = r;
     if (!iid || isPlaceholder(iid)) { bump("intents", "skipped"); continue; }
     await insertEntry("intents", `intent-${slugify(iid)}`, {
-      intent_id: iid,
       name: name || iid,
       description: description || "",
       ai_instructions: templateRef || "",
-      requires_crm: /yes/i.test(crm || ""),
-      escalation_check: /yes/i.test(esc || ""),
-      revenue_opportunity: /yes/i.test(rev || ""),
     });
   }
 }
@@ -850,16 +846,12 @@ async function main() {
   // Custom modules (labels required by schema)
   await createCustomModule({
     slug: "intents",
-    label: "Intents",
+    label: "Instructions",
     icon: "target",
     fields: [
-      { key: "intent_id", label: "Intent ID", type: "text", required: true, localized: false },
       { key: "name", label: "Name", type: "text", required: true, localized: false },
-      { key: "description", label: "Description", type: "textarea", required: false, localized: false },
+      { key: "description", label: "Intent", type: "textarea", required: false, localized: false },
       { key: "ai_instructions", label: "AI Instructions", type: "textarea", required: false, localized: false },
-      { key: "requires_crm", label: "Requires CRM", type: "boolean", required: false, localized: false },
-      { key: "escalation_check", label: "Escalation Check", type: "boolean", required: false, localized: false },
-      { key: "revenue_opportunity", label: "Revenue Opportunity", type: "boolean", required: false, localized: false },
     ],
   });
 

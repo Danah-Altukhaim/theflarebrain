@@ -173,29 +173,16 @@ async function seedTestCo() {
     { key: "google_maps_url", label: "Maps", type: "url", required: false, localized: false },
     { key: "hours_regular", label: "Hours (regular)", type: "textarea", required: true, localized: false },
   ];
-  const promoFields: FieldDefinition[] = [
-    { key: "name", label: "Name", type: "text", required: true, localized: false },
-    { key: "type", label: "Type", type: "select", required: true, localized: false,
-      options: ["Promo", "Seasonal", "Bank", "Update", "Ops"] },
-    { key: "message", label: "Customer message", type: "textarea", required: true, localized: true },
-    { key: "start_date", label: "Start", type: "date", required: false, localized: false },
-    { key: "end_date", label: "End", type: "date", required: false, localized: false },
-  ];
   const faqFields: FieldDefinition[] = [
     { key: "question", label: "Question", type: "text", required: true, localized: true },
     { key: "answer", label: "Answer", type: "textarea", required: true, localized: true },
   ];
 
-  const [branches, promos, faqs] = await Promise.all([
+  const [branches, faqs] = await Promise.all([
     prisma.module.upsert({
       where: { tenantId_slug: { tenantId: tenant.id, slug: "branches" } },
       create: { tenantId: tenant.id, slug: "branches", label: "Branches", icon: "map-pin", fieldDefinitions: branchFields as object },
       update: { fieldDefinitions: branchFields as object },
-    }),
-    prisma.module.upsert({
-      where: { tenantId_slug: { tenantId: tenant.id, slug: "promotions" } },
-      create: { tenantId: tenant.id, slug: "promotions", label: "Promotions", icon: "tag", fieldDefinitions: promoFields as object },
-      update: { fieldDefinitions: promoFields as object },
     }),
     prisma.module.upsert({
       where: { tenantId_slug: { tenantId: tenant.id, slug: "faqs" } },
@@ -217,28 +204,8 @@ async function seedTestCo() {
         name_ar: "سوق السالمية",
         governorate: "Hawalli",
         status: "Active",
-        google_maps_url: "https://maps.example/salmiya",
-        hours_regular: "Sun-Thu 10:00-22:00; Fri-Sat 10:00-23:00",
-      },
-    },
-    update: {},
-  });
-
-  await prisma.entry.upsert({
-    where: { tenantId_moduleId_externalId: { tenantId: tenant.id, moduleId: promos.id, externalId: "nbk-summer" } },
-    create: {
-      tenantId: tenant.id,
-      moduleId: promos.id,
-      externalId: "nbk-summer",
-      createdBy: editor.id,
-      status: "active",
-      data: {
-        name: "NBK Summer Promo",
-        type: "Bank",
-        message_en: "30% off rides with NBK cards this July!",
-        message_ar: "خصم 30% على الألعاب عند الدفع ببطاقة NBK خلال يوليو",
-        start_date: "2026-07-01T00:00:00.000Z",
-        end_date: "2026-07-31T23:59:59.000Z",
+        google_maps_url: "https://maps.app.goo.gl/fJpx5oYZNaFG5Ege7",
+        hours_regular: "Daily: 10AM-12AM",
       },
     },
     update: {},

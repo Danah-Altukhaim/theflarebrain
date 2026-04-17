@@ -232,21 +232,21 @@ function ActivityRow({ event }: { event: Event }) {
   );
 
   return (
-    <li className="group flex items-start gap-3 px-4 py-3 hover:bg-surface-secondary/50 transition-colors">
+    <li className="group flex items-start gap-2.5 sm:gap-3 px-3 sm:px-4 py-3 hover:bg-surface-secondary/50 transition-colors">
       <div
-        className="w-8 h-8 rounded-full bg-pair-light text-pair flex items-center justify-center text-[11px] font-semibold shrink-0 mt-0.5"
+        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-pair-light text-pair flex items-center justify-center text-[10px] sm:text-[11px] font-semibold shrink-0 mt-0.5"
         title={event.user?.name ?? "System"}
       >
         {initials(event.user?.name)}
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <span className={`badge ${meta.chip} shrink-0`}>
             <Icon name={meta.icon} size={11} />
             {meta.label}
           </span>
-          <span className="text-[13px] text-apple-secondary">
+          <span className="text-[12px] sm:text-[13px] text-apple-secondary">
             <span className="font-medium text-apple-text">{event.user?.name ?? "System"}</span>{" "}
             {meta.verb}
           </span>
@@ -259,17 +259,20 @@ function ActivityRow({ event }: { event: Event }) {
             titleNode
           )}
           {event.module && (
-            <span className="badge badge-gray shrink-0">{event.module.label}</span>
+            <span className="badge badge-gray shrink-0 hidden sm:inline-flex">{event.module.label}</span>
           )}
         </div>
         {event.detail && (
-          <div className="text-[12px] text-apple-tertiary mt-1 truncate" title={event.detail}>
+          <div className="text-[11px] sm:text-[12px] text-apple-tertiary mt-1 truncate" title={event.detail}>
             {event.detail}
           </div>
         )}
+        <span className="text-[10px] text-apple-tertiary mt-1 sm:hidden block">
+          {relTime(event.timestamp)}
+        </span>
       </div>
 
-      <span className="text-[11px] text-apple-tertiary whitespace-nowrap pt-1.5">
+      <span className="text-[11px] text-apple-tertiary whitespace-nowrap pt-1.5 hidden sm:block">
         {relTime(event.timestamp)}
       </span>
     </li>

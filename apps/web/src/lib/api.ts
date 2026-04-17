@@ -1,5 +1,7 @@
 import { useAuth } from "../state/auth.js";
 
+let isRedirecting = false;
+
 export async function api<T = unknown>(
   path: string,
   init: RequestInit = {},
@@ -15,7 +17,8 @@ export async function api<T = unknown>(
   });
   if (resp.status === 401 && token) {
     useAuth.getState().signOut();
-    if (!location.pathname.startsWith("/login")) {
+    if (!isRedirecting && !location.pathname.startsWith("/login")) {
+      isRedirecting = true;
       location.replace(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
     }
     throw new Error("Session expired");

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link, useParams, useOutletContext } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAutoTranslation } from "../lib/translate.js";
@@ -17,6 +17,7 @@ type ModuleInfo = { id: string; slug: string; label: string; fieldDefinitions?: 
 
 const STATUS_BADGE: Record<string, string> = {
   active: "badge-green",
+  inactive: "badge-gray",
   draft: "badge-gray",
   scheduled: "badge-blue",
   expired: "badge-gray",
@@ -33,14 +34,16 @@ const QUESTION_RE = /^q(uestion)?(_|$)/i;
 const ANSWER_RE = /^a(nswer)?(_|$)/i;
 const EN_RE = /(^|_)(en|english)(_|$)/i;
 const AR_RE = /(^|_)(ar|arabic)(_|$)/i;
+const NAME_RE = /^name(_|$)/i;
 
 function orderKeys(keys: string[]): string[] {
   const rank = (k: string) => {
     if (QUESTION_RE.test(k)) return 0;
-    if (ANSWER_RE.test(k)) return 4;
-    if (EN_RE.test(k)) return 1;
+    if (NAME_RE.test(k)) return 1;
+    if (EN_RE.test(k)) return 2;
     if (AR_RE.test(k)) return 3;
-    return 2;
+    if (ANSWER_RE.test(k)) return 4;
+    return 5;
   };
   return [...keys]
     .map((k, i) => ({ k, i, r: rank(k) }))
@@ -58,52 +61,143 @@ const ICON_STRIP_RE =
 const DATE_KEY_RE = /(date|deadline|expires?|published|start|end)/i;
 const HOURS_KEY_RE = /(^|_)hours?($|_)/i;
 
-// Normalize hours text onto one day-range per line. Handles run-together values
-// like "Sun-Wed: 10AM-10PMThu-Sat: 10AM-11PM" and semicolon-separated forms.
-function normalizeHours(raw: string): string {
-  if (!raw) return raw;
-  return raw
-    .replace(/\s*;\s*/g, "\n")
-    .replace(
-      /([AP]M|\d{2})(?=\s*(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat|Daily|Weekends?|Weekdays?|Public|Holidays?)\b)/gi,
-      "$1\n",
-    )
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("\n");
+const HIDDEN_EDIT_KEYS = new Set([
+  "intent_id",
+  "requires_crm",
+  "escalation_check",
+  "revenue_opportunity",
+]);
+
+type HoursEntry = { days: string; time: string };
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const DAY_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
+const DAY_LOOKUP: Record<string, number> = (() => {
+  const out: Record<string, number> = {};
+  DAY_LABELS.forEach((lbl, i) => {
+    const low = lbl.toLowerCase();
+    out[low] = i;
+    out[low.slice(0, 2)] = i;
+    out[low.slice(0, 3)] = i;
+  });
+  return out;
+})();
+
+function parseDaySelection(raw: string): boolean[] {
+  const out = [false, false, false, false, false, false, false];
+  const s = raw.trim().toLowerCase();
+  if (!s) return out;
+  if (s === "daily" || s === "everyday" || s === "every day") return out.map(() => true);
+  const range = s.match(/^([a-z]+)\s*[-\u2013]\s*([a-z]+)$/);
+  if (range) {
+    const a = DAY_LOOKUP[range[1]!];
+    const b = DAY_LOOKUP[range[2]!];
+    if (a != null && b != null) {
+      let i = a;
+      for (let guard = 0; guard < 8; guard++) {
+        out[i] = true;
+        if (i === b) return out;
+        i = (i + 1) % 7;
+      }
+    }
+  }
+  let matched = false;
+  s.split(/[,;\s]+/).forEach((tok) => {
+    const idx = DAY_LOOKUP[tok];
+    if (idx != null) { out[idx] = true; matched = true; }
+  });
+  return matched ? out : [false, false, false, false, false, false, false];
 }
 
-function parseHoursLine(line: string): { days: string; hours: string } | null {
-  const m = line.match(
-    /^(.+?)[\s:]+((?:\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(?:\d{1,2}(?::\d{2})?\s*(?:AM|PM)?))\s*$/i,
-  );
-  if (!m) return null;
-  return { days: m[1]!.trim().replace(/[:,]$/, ""), hours: m[2]!.trim() };
+function formatDaySelection(sel: boolean[]): string {
+  if (sel.every((v) => v)) return "Daily";
+  if (sel.every((v) => !v)) return "";
+  const idxs: number[] = [];
+  sel.forEach((v, i) => { if (v) idxs.push(i); });
+  let contiguous = true;
+  for (let k = 1; k < idxs.length; k++) {
+    if (idxs[k]! - idxs[k - 1]! !== 1) { contiguous = false; break; }
+  }
+  if (contiguous && idxs.length >= 2) {
+    return `${DAY_LABELS[idxs[0]!]}-${DAY_LABELS[idxs[idxs.length - 1]!]}`;
+  }
+  return idxs.map((i) => DAY_LABELS[i]).join(", ");
 }
 
-function HoursDisplay({ raw }: { raw: string }) {
-  const lines = normalizeHours(raw).split("\n").filter(Boolean);
-  if (lines.length === 0) {
+const TIME_OPTIONS: string[] = (() => {
+  const opts: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const ampm = h < 12 ? "AM" : "PM";
+      const hh = h === 0 || h === 12 ? 12 : h % 12;
+      const mm = m === 0 ? "" : `:${String(m).padStart(2, "0")}`;
+      opts.push(`${hh}${mm}${ampm}`);
+    }
+  }
+  return opts;
+})();
+
+function normalizeTimeToken(t: string): string {
+  const m = t.trim().toUpperCase().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  if (!m) return "";
+  const h = parseInt(m[1]!, 10);
+  const mm = m[2] ? parseInt(m[2]!, 10) : 0;
+  const snappedMm = mm < 15 ? 0 : mm < 45 ? 30 : 0;
+  const carryHour = mm >= 45 ? 1 : 0;
+  const h12 = ((h + carryHour - 1) % 12) + 1;
+  const mmStr = snappedMm === 0 ? "" : `:${String(snappedMm).padStart(2, "0")}`;
+  const candidate = `${h12}${mmStr}${m[3]}`;
+  return TIME_OPTIONS.includes(candidate) ? candidate : "";
+}
+
+function parseShifts(raw: string): Array<[string, string]> {
+  const shifts: Array<[string, string]> = [];
+  const parts = raw.split(/\s*;\s*/).filter(Boolean);
+  for (const p of parts) {
+    const m = p.match(/^\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM))\s*[-\u2013]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM))\s*$/i);
+    if (m) {
+      shifts.push([normalizeTimeToken(m[1]!), normalizeTimeToken(m[2]!)]);
+    } else {
+      shifts.push(["", ""]);
+    }
+  }
+  return shifts.length ? shifts : [["", ""]];
+}
+
+function formatShifts(shifts: Array<[string, string]>): string {
+  return shifts
+    .map(([a, b]) => `${a}-${b}`)
+    .join("; ");
+}
+
+function parseHoursValue(raw: unknown): HoursEntry[] {
+  if (Array.isArray(raw)) return raw as HoursEntry[];
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as HoursEntry[];
+    } catch { /* fall through */ }
+    return raw.split(/\r?\n|;\s*/).filter(Boolean).map((line) => {
+      const m = line.match(/^(.+?):\s*(.+)$/);
+      return m ? { days: m[1]!.trim(), time: m[2]!.trim() } : { days: line.trim(), time: "" };
+    });
+  }
+  return [];
+}
+
+function HoursDisplay({ value }: { value: unknown }) {
+  const entries = parseHoursValue(value);
+  if (entries.length === 0) {
     return <div className="text-[13px] text-apple-text">-</div>;
   }
   return (
     <ul className="rounded-apple border border-apple-separator-light bg-[#F9F9F9] overflow-hidden divide-y divide-apple-separator-light">
-      {lines.map((line, i) => {
-        const parsed = parseHoursLine(line);
-        return (
-          <li key={i} className="flex items-center justify-between gap-4 px-3 py-1.5">
-            {parsed ? (
-              <>
-                <span className="text-[12px] font-medium text-apple-text">{parsed.days}</span>
-                <span className="text-[12px] tabular-nums text-apple-secondary">{parsed.hours}</span>
-              </>
-            ) : (
-              <span className="text-[12px] text-apple-text">{line}</span>
-            )}
-          </li>
-        );
-      })}
+      {entries.map((entry, i) => (
+        <li key={i} className="flex items-center justify-between gap-4 px-3 py-1.5">
+          <span className="text-[12px] font-medium text-apple-text">{entry.days}</span>
+          <span className="text-[12px] tabular-nums text-apple-secondary">{entry.time}</span>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -114,7 +208,13 @@ function badgeFor(status?: string): string {
   return STATUS_BADGE[k] ?? "badge-gray";
 }
 
+const KEY_LABEL_OVERRIDES: Record<string, string> = {
+  rule: "Branch",
+  name: "Type",
+};
+
 function humanizeKey(k: string): string {
+  if (KEY_LABEL_OVERRIDES[k]) return KEY_LABEL_OVERRIDES[k];
   return k
     .replace(/_/g, " ")
     .replace(/\b([a-z])/g, (m) => m.toUpperCase())
@@ -162,7 +262,87 @@ function toDateInput(raw: unknown): string {
   return "";
 }
 
+function toTimeInput(raw: unknown): string {
+  if (raw == null) return "";
+  const s = String(raw);
+  const m = s.match(/^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})/);
+  if (m) return `${m[1]}:${m[2]}`;
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+function combineDateTime(dateVal: string, timeVal: string): string {
+  if (!dateVal) return "";
+  const time = /^\d{2}:\d{2}$/.test(timeVal) ? timeVal : "00:00";
+  return `${dateVal}T${time}:00.000Z`;
+}
+
 const PROMOTIONS_SLUGS = new Set(["promotions", "active-promotions", "active_offers"]);
+
+// The demo API is backed by static fixtures, so DELETE returns success but the
+// entry reappears on reload. Track deleted IDs client-side so the UI state
+// survives page refreshes during the demo session.
+const DELETED_STORAGE_KEY = "brain-demo-deleted-entry-ids";
+
+function getDeletedIds(slug: string): Set<string> {
+  if (typeof localStorage === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as Record<string, string[]>;
+    return new Set(parsed[slug] ?? []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markEntryDeleted(slug: string, id: string): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    const raw = localStorage.getItem(DELETED_STORAGE_KEY);
+    const parsed = (raw ? JSON.parse(raw) : {}) as Record<string, string[]>;
+    const list = parsed[slug] ?? [];
+    if (!list.includes(id)) list.push(id);
+    parsed[slug] = list;
+    localStorage.setItem(DELETED_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // localStorage full or unavailable; best-effort only
+  }
+}
+
+// Demo-mode status overrides: PATCH to the fixture API does not persist, so
+// keep deactivated IDs in localStorage and rewrite status on reload.
+const INACTIVE_STORAGE_KEY = "brain-demo-inactive-entry-ids";
+
+function getInactiveIds(slug: string): Set<string> {
+  if (typeof localStorage === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(INACTIVE_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as Record<string, string[]>;
+    return new Set(parsed[slug] ?? []);
+  } catch {
+    return new Set();
+  }
+}
+
+function setEntryActive(slug: string, id: string, active: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    const raw = localStorage.getItem(INACTIVE_STORAGE_KEY);
+    const parsed = (raw ? JSON.parse(raw) : {}) as Record<string, string[]>;
+    const list = new Set(parsed[slug] ?? []);
+    if (active) list.delete(id);
+    else list.add(id);
+    parsed[slug] = [...list];
+    localStorage.setItem(INACTIVE_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // best-effort only
+  }
+}
 
 const TITLE_KEYS = ["name", "update_name", "title", "name_en", "update_name_en"];
 const TYPE_KEYS = ["type", "category", "ai_category", "type_en"];
@@ -388,7 +568,13 @@ export function ModulePage() {
     setLoading(true);
     api<Entry[]>(`/api/v1/entries/${slug}`)
       .then((rows) => {
-        setEntries(rows);
+        const deleted = getDeletedIds(slug);
+        const inactive = getInactiveIds(slug);
+        setEntries(
+          rows
+            .filter((r) => !deleted.has(r.id))
+            .map((r) => (inactive.has(r.id) ? { ...r, status: "inactive" } : r)),
+        );
         setLoading(false);
       })
       .catch(() => {
@@ -406,6 +592,7 @@ export function ModulePage() {
     if (!ok) return;
     try {
       await api(`/api/v1/entries/${slug}/${e.id}`, { method: "DELETE" });
+      markEntryDeleted(slug, e.id);
       setEntries((prev) => prev.filter((row) => row.id !== e.id));
     } catch (err) {
       window.alert(
@@ -417,7 +604,7 @@ export function ModulePage() {
   function createNewEntry() {
     const emptyData: Record<string, unknown> = {};
     const now = new Date().toISOString();
-    if (entries[0]) {
+    if (entries[0] && slug !== "escalation_rules") {
       const ref = entries[0].data as Record<string, unknown>;
       for (const k of Object.keys(ref)) {
         const sample = ref[k];
@@ -454,6 +641,57 @@ export function ModulePage() {
   );
 
   const langGroups = useMemo(() => groupLangKeys(keys), [keys]);
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of entries) {
+      const v = (e.data as Record<string, unknown>).category;
+      if (typeof v === "string" && v.trim()) set.add(v.trim());
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const deleteCategory = useCallback(
+    async (name: string): Promise<boolean> => {
+      const affected = entries.filter(
+        (e) => (e.data as Record<string, unknown>).category === name,
+      );
+      const others = affected.filter((e) => e.id !== editing?.id);
+      const ok = window.confirm(
+        others.length > 0
+          ? `Delete category "${name}"? This will clear the category on ${others.length} other ${others.length === 1 ? "entry" : "entries"}.`
+          : `Delete category "${name}"?`,
+      );
+      if (!ok) return false;
+      try {
+        await Promise.all(
+          others.map((e) =>
+            api(`/api/v1/entries/${slug}/${e.id}`, {
+              method: "PATCH",
+              body: JSON.stringify({
+                data: { ...(e.data as object), category: "" },
+                changeSummary: `delete category "${name}"`,
+              }),
+            }),
+          ),
+        );
+        setEntries((prev) =>
+          prev.map((e) =>
+            (e.data as Record<string, unknown>).category === name && e.id !== editing?.id
+              ? { ...e, data: { ...(e.data as object), category: "" } }
+              : e,
+          ),
+        );
+        return true;
+      } catch (err) {
+        window.alert(
+          `Failed to delete category: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return false;
+      }
+    },
+    [entries, editing?.id, slug],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -568,6 +806,8 @@ export function ModulePage() {
             isNew={isNewEntry}
             selectOptions={selectOptions}
             fieldDefinitions={fieldDefs}
+            categoryOptions={categoryOptions}
+            onDeleteCategory={deleteCategory}
             onClose={() => { setEditing(null); setIsNewEntry(false); }}
             onSaved={() => {
               setEditing(null);
@@ -609,16 +849,16 @@ function PromotionCard({
         : "text-apple-secondary";
 
   return (
-    <article className="card p-5 hover:shadow-apple transition-shadow">
-      <header className="flex items-start gap-3 flex-wrap">
-        <h2 className="text-[16px] font-semibold tracking-tight text-apple-text flex-1 min-w-0">
+    <article className="card p-4 sm:p-5 hover:shadow-apple transition-shadow">
+      <header className="flex items-start gap-2 sm:gap-3 flex-wrap">
+        <h2 className="text-[15px] sm:text-[16px] font-semibold tracking-tight text-apple-text flex-1 min-w-0">
           {title}
         </h2>
         {type && <span className="badge badge-blue shrink-0">{type}</span>}
         <span className={`badge ${badgeFor(entry.status)} shrink-0`}>{entry.status}</span>
       </header>
 
-      <div className="flex items-center justify-between mt-2.5 text-[12px]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-2.5 gap-2 text-[12px]">
         <div className="inline-flex items-center gap-1.5 text-apple-secondary">
           <Icon name="calendar-check" size={12} />
           <span className="tabular-nums">{startRaw ? formatDate(startRaw) : "-"}</span>
@@ -680,53 +920,23 @@ type Column = {
   dataKey?: string;
 };
 
-function findTitleKey(entries: Entry[]): string | null {
-  for (const k of TITLE_KEYS) {
-    if (
-      entries.some((e) => {
-        const v = (e.data as Record<string, unknown>)[k];
-        return typeof v === "string" && v.trim().length > 0;
-      })
-    )
-      return k;
-  }
-  // Fallback: same key that rowTitle would surface (first short-ish string).
-  // Without this, FAQs (no name/title field) would render the same value as
-  // both the row title and a redundant column.
-  const first = entries[0];
-  if (!first) return null;
-  for (const [k, v] of Object.entries(first.data as Record<string, unknown>)) {
-    if (typeof v === "string" && v.trim().length > 0 && v.length < 100) return k;
-  }
-  return null;
-}
-
-function rowTitle(d: Record<string, unknown>): string {
-  const t = pickField(d, TITLE_KEYS);
-  if (t) return stripIcons(t);
-  const fallback = Object.values(d).find(
-    (v) => typeof v === "string" && (v as string).trim().length > 0 && (v as string).length < 100,
-  ) as string | undefined;
-  return stripIcons(fallback ?? "(untitled)");
-}
-
 const HIDDEN_TABLE_KEYS = new Set([
+  "governorate",
   "hours_ramadan",
   "status",
   "intent_id",
   "requires_crm",
   "revenue_opportunity",
   "escalation_check",
+  "category",
 ]);
 
 function deriveColumns(
   entries: Entry[],
   langGroups: LangGroup[],
-  titleKey: string | null,
 ): Column[] {
   const cols: Column[] = [];
   const consumed = new Set<string>();
-  if (titleKey) consumed.add(titleKey);
 
   let primaryAssigned = false;
 
@@ -852,12 +1062,15 @@ function ShapeCell({ col, d }: { col: Column; d: Record<string, unknown> }) {
       );
     }
     case "hours": {
-      const lines = normalizeHours(stripIcons(s)).split("\n").filter(Boolean);
-      if (lines.length === 0) return <span className="text-apple-tertiary">-</span>;
+      const entries = parseHoursValue(raw);
+      if (entries.length === 0) return <span className="text-apple-tertiary">-</span>;
       return (
-        <div className="text-[13px] text-apple-text whitespace-nowrap" title={lines.join("\n")}>
-          {lines.map((line, i) => (
-            <div key={i}>{line}</div>
+        <div className="text-[13px] text-apple-text whitespace-nowrap" title={entries.map((e) => `${e.days}: ${e.time}`).join("\n")}>
+          {entries.map((entry, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="font-medium">{entry.days}</span>
+              <span className="text-apple-secondary tabular-nums">{entry.time}</span>
+            </div>
           ))}
         </div>
       );
@@ -901,10 +1114,9 @@ function EntryTable({
   onEdit: (e: Entry) => void;
   onDelete: (e: Entry) => void;
 }) {
-  const titleKey = useMemo(() => findTitleKey(entries), [entries]);
   const cols = useMemo(
-    () => deriveColumns(entries, langGroups, titleKey),
-    [entries, langGroups, titleKey],
+    () => deriveColumns(entries, langGroups),
+    [entries, langGroups],
   );
 
   if (!loading && entries.length === 0) {
@@ -923,13 +1135,18 @@ function EntryTable({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-apple-separator-light bg-[#FBFBFD]">
-              <th
-                scope="col"
-                className="px-4 py-2.5 text-[11px] uppercase tracking-[0.06em] font-medium text-apple-tertiary"
-              >
-                Title
-              </th>
-              {cols.map((c) => (
+              {cols[0] && (
+                <th
+                  key={cols[0].key}
+                  scope="col"
+                  className={`px-3 py-2.5 text-[11px] uppercase tracking-[0.06em] font-medium text-apple-tertiary whitespace-nowrap ${
+                    cols[0].primary ? "" : "hidden lg:table-cell"
+                  } ${cols[0].shape === "bool" ? "text-center" : ""}`}
+                >
+                  {cols[0].label}
+                </th>
+              )}
+              {cols.slice(1).map((c) => (
                 <th
                   key={c.key}
                   scope="col"
@@ -948,19 +1165,23 @@ function EntryTable({
           <tbody>
             {entries.map((e) => {
               const d = e.data as Record<string, unknown>;
-              const title = rowTitle(d);
               return (
                 <tr
                   key={e.id}
                   onClick={() => onEdit(e)}
                   className="border-b border-apple-separator-light last:border-0 hover:bg-[#F9F9F9] cursor-pointer transition-colors"
                 >
-                  <td className="px-4 py-3 align-middle">
-                    <div className="text-[13.5px] font-medium text-apple-text line-clamp-2 max-w-[260px]">
-                      {title}
-                    </div>
-                  </td>
-                  {cols.map((c) => (
+                  {cols[0] && (
+                    <td
+                      key={cols[0].key}
+                      className={`px-3 py-3 align-middle ${cols[0].primary ? "" : "hidden lg:table-cell"} ${
+                        cols[0].shape === "bool" ? "text-center" : ""
+                      }`}
+                    >
+                      <ShapeCell col={cols[0]} d={d} />
+                    </td>
+                  )}
+                  {cols.slice(1).map((c) => (
                     <td
                       key={c.key}
                       className={`px-3 py-3 align-middle ${c.primary ? "" : "hidden lg:table-cell"} ${
@@ -1075,12 +1296,203 @@ function CollapsibleTextarea({
   );
 }
 
+function CategoryCombobox({
+  value,
+  options,
+  onChange,
+  onDeleteOption,
+}: {
+  value: string;
+  options: string[];
+  onChange: (val: string) => void;
+  onDeleteOption?: (name: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [localExtra, setLocalExtra] = useState<string[]>([]);
+  const [dropUp, setDropUp] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [open]);
+
+  const allOptions = useMemo(() => {
+    const set = new Set<string>([...options, ...localExtra]);
+    if (value.trim()) set.add(value.trim());
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [options, localExtra, value]);
+
+  const trimmed = search.trim();
+  const filtered = trimmed
+    ? allOptions.filter((o) => o.toLowerCase().includes(trimmed.toLowerCase()))
+    : allOptions;
+  const canAdd =
+    !!trimmed &&
+    !allOptions.some((o) => o.toLowerCase() === trimmed.toLowerCase());
+
+  function toggleOpen() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setDropUp(spaceBelow < 320 && rect.top > spaceBelow);
+    }
+    setOpen((v) => !v);
+    if (open) setSearch("");
+  }
+
+  function commit(raw: string) {
+    const name = raw.trim();
+    if (!name) return;
+    if (!allOptions.some((o) => o.toLowerCase() === name.toLowerCase())) {
+      setLocalExtra((prev) => [...prev, name]);
+    }
+    onChange(name);
+    setOpen(false);
+    setSearch("");
+  }
+
+  async function handleDelete(name: string) {
+    if (!onDeleteOption) return;
+    const ok = await onDeleteOption(name);
+    if (!ok) return;
+    setLocalExtra((prev) => prev.filter((o) => o !== name));
+    if (value === name) onChange("");
+  }
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={toggleOpen}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="input-apple w-full cursor-pointer text-left flex items-center justify-between gap-2"
+      >
+        <span className={`truncate ${value ? "text-apple-text" : "text-apple-tertiary"}`}>
+          {value || "Select or add a category..."}
+        </span>
+        <span className={`shrink-0 text-apple-tertiary transition-transform ${open ? "rotate-180" : ""}`}>
+          <Icon name="chevron-down" size={14} />
+        </span>
+      </button>
+      {open && (
+        <div
+          className={`absolute z-30 w-full rounded-apple border border-apple-separator-light bg-white shadow-apple-lg overflow-hidden ${
+            dropUp ? "bottom-full mb-1" : "top-full mt-1"
+          }`}
+        >
+          <div className="p-2 border-b border-apple-separator-light">
+            <input
+              ref={inputRef}
+              type="text"
+              className="input-apple !py-1.5 !text-[13px]"
+              placeholder="Search or type to add..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (trimmed) commit(trimmed);
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setOpen(false);
+                  setSearch("");
+                }
+              }}
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto py-1">
+            {canAdd && (
+              <button
+                type="button"
+                onClick={() => commit(trimmed)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-pair hover:bg-[#F5F8FF]"
+              >
+                <Icon name="plus" size={13} />
+                <span className="truncate">Add &ldquo;{trimmed}&rdquo;</span>
+              </button>
+            )}
+            {filtered.length === 0 && !canAdd && (
+              <div className="px-3 py-4 text-center text-[12px] text-apple-tertiary">
+                No categories yet. Type above to add one.
+              </div>
+            )}
+            {filtered.map((opt) => (
+              <div
+                key={opt}
+                role="option"
+                aria-selected={opt === value}
+                tabIndex={0}
+                onClick={() => commit(opt)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    commit(opt);
+                  }
+                }}
+                className={`group flex items-center justify-between gap-2 px-3 py-2 cursor-pointer hover:bg-[#F2F2F5] ${
+                  opt === value ? "bg-[#F5F8FF]" : ""
+                }`}
+              >
+                <span className="flex-1 truncate text-[13px] text-apple-text flex items-center gap-2">
+                  <span className="truncate">{opt}</span>
+                  {opt === value && (
+                    <span className="shrink-0 text-pair">
+                      <Icon name="check" size={12} />
+                    </span>
+                  )}
+                </span>
+                {onDeleteOption && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(opt);
+                    }}
+                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-apple-tertiary opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-50 transition-opacity"
+                    title={`Delete "${opt}"`}
+                    aria-label={`Delete category ${opt}`}
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EditEntryModal({
   slug,
   entry,
   isNew,
   selectOptions,
   fieldDefinitions,
+  categoryOptions,
+  onDeleteCategory,
   onClose,
   onSaved,
   onDelete,
@@ -1090,11 +1502,16 @@ function EditEntryModal({
   isNew?: boolean;
   selectOptions?: Record<string, string[]>;
   fieldDefinitions?: FieldDef[];
+  categoryOptions?: string[];
+  onDeleteCategory?: (name: string) => Promise<boolean>;
   onClose: () => void;
   onSaved: () => void;
   onDelete: () => void;
 }) {
-  const initialKeys = useMemo(() => orderKeys(Object.keys(entry.data)), [entry]);
+  const initialKeys = useMemo(
+    () => orderKeys(Object.keys(entry.data).filter((k) => !HIDDEN_EDIT_KEYS.has(k))),
+    [entry],
+  );
 
   const getLabel = useMemo(() => {
     const map: Record<string, string> = {};
@@ -1110,13 +1527,19 @@ function EditEntryModal({
     }
     return (k: string) => map[k] ?? humanizeKey(k);
   }, [fieldDefinitions]);
-  const [draft, setDraft] = useState<Record<string, string>>(() =>
+  const [draft, setDraft] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(initialKeys.map((k) => {
-      const raw = String(entry.data[k] ?? "");
+      const rawVal = entry.data[k];
+      if (HOURS_KEY_RE.test(k)) {
+        return [k, parseHoursValue(rawVal)];
+      }
+      const raw = String(rawVal ?? "");
       if (DATE_KEY_RE.test(k) || ISO_DATE_RE.test(raw)) return [k, raw];
-      const cleaned = stripIcons(raw);
-      return [k, HOURS_KEY_RE.test(k) ? normalizeHours(cleaned) : cleaned];
+      return [k, stripIcons(raw)];
     })),
+  );
+  const [active, setActive] = useState<boolean>(
+    (entry.status ?? "active").toLowerCase() !== "inactive",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1125,8 +1548,16 @@ function EditEntryModal({
     setBusy(true);
     setError(null);
     const data: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(entry.data)) {
+      if (HIDDEN_EDIT_KEYS.has(k)) data[k] = v;
+    }
     for (const k of initialKeys) {
-      const v = draft[k] ?? "";
+      if (HOURS_KEY_RE.test(k)) {
+        const entries = (draft[k] as HoursEntry[] | undefined) ?? [];
+        data[k] = entries.filter((e) => e.days.trim() || e.time.trim());
+        continue;
+      }
+      const v = String(draft[k] ?? "");
       if (DATE_KEY_RE.test(k) && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
         data[k] = `${v}T00:00:00.000Z`;
       } else {
@@ -1144,6 +1575,7 @@ function EditEntryModal({
           method: "PATCH",
           body: JSON.stringify({ data, changeSummary: "manual edit" }),
         });
+        setEntryActive(slug, entry.id, active);
       }
       onSaved();
     } catch (err) {
@@ -1157,14 +1589,14 @@ function EditEntryModal({
       role="dialog"
       aria-modal="true"
       aria-label="Edit entry"
-      className="fixed inset-0 z-50 grid place-items-center bg-black/30 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/30 backdrop-blur-sm p-2 sm:p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="card w-full max-w-2xl max-h-[88vh] flex flex-col animate-scale-in"
+        className="card w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col animate-scale-in"
       >
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-apple-separator-light">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-apple-separator-light">
           <div className="min-w-0 flex-1 mr-3">
             <div className="text-[15px] font-semibold text-apple-text">{isNew ? "New entry" : "Edit entry"}</div>
             {!isNew && (
@@ -1184,19 +1616,214 @@ function EditEntryModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {!isNew && (
+            <div className="flex items-center justify-between rounded-apple border border-apple-separator-light bg-[#FAFAFA] px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-[13px] font-medium text-apple-text">
+                  {active ? "Active" : "Inactive"}
+                </div>
+                <div className="text-[11px] text-apple-tertiary">
+                  {active
+                    ? "Visible to customers"
+                    : "Hidden from customers until reactivated"}
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={active}
+                aria-label={active ? "Deactivate entry" : "Activate entry"}
+                onClick={() => setActive((v) => !v)}
+                className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors ${
+                  active ? "bg-pair" : "bg-[#E5E5EA]"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    active ? "translate-x-[18px]" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
           {(() => {
             const elements: React.ReactNode[] = [];
             let i = 0;
 
             const isShortField = (key: string) => {
+              if (key === "category") return false;
               return !!selectOptions?.[key];
             };
 
             const renderField = (key: string) => {
-              const val = draft[key] ?? "";
+              const rawVal = draft[key] ?? "";
+              if (key === "category") {
+                const val = String(rawVal);
+                return (
+                  <div key={key}>
+                    <label className="label">{getLabel(key)}</label>
+                    <CategoryCombobox
+                      value={val}
+                      options={categoryOptions ?? []}
+                      onChange={(v) => setDraft({ ...draft, [key]: v })}
+                      onDeleteOption={onDeleteCategory}
+                    />
+                  </div>
+                );
+              }
               const opts = selectOptions?.[key];
-              const isHours = HOURS_KEY_RE.test(key);
-              const isLong = !opts && (isHours || val.length > 80 || val.includes("\n"));
+
+              if (HOURS_KEY_RE.test(key)) {
+                const entries = (rawVal as HoursEntry[] | undefined) ?? [];
+                const updateEntry = (idx: number, field: "days" | "time", value: string) => {
+                  const updated = entries.map((e, i) => i === idx ? { ...e, [field]: value } : e);
+                  setDraft({ ...draft, [key]: updated });
+                };
+                const addEntry = () => setDraft({ ...draft, [key]: [...entries, { days: "", time: "" }] });
+                const removeEntry = (idx: number) => setDraft({ ...draft, [key]: entries.filter((_, i) => i !== idx) });
+                return (
+                  <div key={key}>
+                    <label className="label">{getLabel(key)}</label>
+                    <div className="space-y-2">
+                      {entries.map((entry, idx) => {
+                        const dayPicks = parseDaySelection(entry.days);
+                        const allDays = dayPicks.every((v) => v);
+                        const shifts = parseShifts(entry.time);
+                        const toggleDay = (i: number) => {
+                          const next = [...dayPicks];
+                          next[i] = !next[i];
+                          updateEntry(idx, "days", formatDaySelection(next));
+                        };
+                        const toggleDaily = () => {
+                          updateEntry(idx, "days", allDays ? "" : "Daily");
+                        };
+                        const updateShift = (shiftIdx: number, pos: 0 | 1, value: string) => {
+                          const next: Array<[string, string]> = shifts.map((s, i) =>
+                            i === shiftIdx
+                              ? (pos === 0 ? [value, s[1]] : [s[0], value]) as [string, string]
+                              : s,
+                          );
+                          updateEntry(idx, "time", formatShifts(next));
+                        };
+                        const addShift = () => {
+                          const next: Array<[string, string]> = [...shifts, ["", ""]];
+                          updateEntry(idx, "time", formatShifts(next));
+                        };
+                        const removeShift = (shiftIdx: number) => {
+                          const next = shifts.filter((_, i) => i !== shiftIdx);
+                          updateEntry(idx, "time", formatShifts(next.length ? next : [["", ""]]));
+                        };
+                        return (
+                          <div key={idx} className="rounded-apple border border-apple-separator-light bg-[#FAFAFA] p-2.5">
+                            <div className="flex items-start gap-2">
+                              <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {DAY_SHORT.map((lbl, i) => (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      onClick={() => toggleDay(i)}
+                                      aria-label={DAY_LABELS[i]}
+                                      aria-pressed={dayPicks[i]}
+                                      className={`w-8 h-8 rounded-full text-[11px] font-medium transition-colors ${
+                                        dayPicks[i]
+                                          ? "bg-pair text-white"
+                                          : "bg-white border border-[#E8E8E8] text-apple-secondary hover:bg-[#F2F2F5]"
+                                      }`}
+                                    >
+                                      {lbl}
+                                    </button>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={toggleDaily}
+                                    aria-pressed={allDays}
+                                    className={`ml-1 px-3 h-8 rounded-full text-[11px] font-medium transition-colors ${
+                                      allDays
+                                        ? "bg-pair text-white"
+                                        : "bg-white border border-[#E8E8E8] text-apple-secondary hover:bg-[#F2F2F5]"
+                                    }`}
+                                  >
+                                    Daily
+                                  </button>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {shifts.map(([open, close], shiftIdx) => (
+                                    <div key={shiftIdx} className="flex items-center gap-1.5">
+                                      <select
+                                        className="input-apple flex-1 min-w-0 text-[13px] cursor-pointer !py-1.5"
+                                        value={open}
+                                        onChange={(ev) => updateShift(shiftIdx, 0, ev.target.value)}
+                                        aria-label="Opens"
+                                      >
+                                        <option value="">Opens</option>
+                                        {TIME_OPTIONS.map((t) => (
+                                          <option key={t} value={t}>{t}</option>
+                                        ))}
+                                      </select>
+                                      <span className="text-[11px] text-apple-tertiary shrink-0">to</span>
+                                      <select
+                                        className="input-apple flex-1 min-w-0 text-[13px] cursor-pointer !py-1.5"
+                                        value={close}
+                                        onChange={(ev) => updateShift(shiftIdx, 1, ev.target.value)}
+                                        aria-label="Closes"
+                                      >
+                                        <option value="">Closes</option>
+                                        {TIME_OPTIONS.map((t) => (
+                                          <option key={t} value={t}>{t}</option>
+                                        ))}
+                                      </select>
+                                      {shifts.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => removeShift(shiftIdx)}
+                                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-apple-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                                          title="Remove shift"
+                                        >
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={addShift}
+                                    className="text-[11px] text-apple-tertiary hover:text-pair"
+                                  >
+                                    + Add shift
+                                  </button>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeEntry(idx)}
+                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-apple-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                                title="Remove row"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={addEntry}
+                        className="text-[12px] text-pair hover:underline"
+                      >
+                        + Add hours row
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              const val = String(rawVal);
+              const isLong = !opts && (val.length > 80 || val.includes("\n"));
               const isAr = ARABIC_RE.test(val);
 
               return (
@@ -1238,8 +1865,10 @@ function EditEntryModal({
             while (i < initialKeys.length) {
               const k = initialKeys[i]!;
               const v = draft[k] ?? "";
-              const isDate = DATE_KEY_RE.test(k) || ISO_DATE_RE.test(v);
-              const isShort = !isDate && isShortField(k);
+              const vStr = typeof v === "string" ? v : "";
+              const isHoursField = HOURS_KEY_RE.test(k);
+              const isDate = !isHoursField && (DATE_KEY_RE.test(k) || ISO_DATE_RE.test(vStr));
+              const isShort = !isDate && !isHoursField && isShortField(k);
               const curFieldType = isDate ? "date" : (isShort ? "short" : "long");
 
               if (prevFieldType && prevFieldType !== curFieldType) {
@@ -1252,23 +1881,38 @@ function EditEntryModal({
                 const dateGroup: string[] = [k];
                 while (i + 1 < initialKeys.length) {
                   const nk = initialKeys[i + 1]!;
-                  const nv = draft[nk] ?? "";
+                  const nv = typeof draft[nk] === "string" ? (draft[nk] as string) : "";
                   if (DATE_KEY_RE.test(nk) || ISO_DATE_RE.test(nv)) {
                     dateGroup.push(nk);
                     i++;
                   } else break;
                 }
+                dateGroup.sort((a, b) => {
+                  const rank = (key: string) => {
+                    if (START_KEYS.includes(key) || /(^|_)(start|starts|publish|begin|from)(_|$)/i.test(key)) return 0;
+                    if (END_KEYS.includes(key) || /(^|_)(end|ends|expires?|until|to)(_|$)/i.test(key)) return 2;
+                    return 1;
+                  };
+                  return rank(a) - rank(b);
+                });
                 elements.push(
                   <div key={`dates-${dateGroup.join("-")}`} className="grid grid-cols-2 gap-3">
-                    {dateGroup.map((dk) => (
-                      <div key={dk}>
-                        <label className="label">{getLabel(dk)}</label>
-                        <DatePicker
-                          value={toDateInput(draft[dk] ?? "")}
-                          onChange={(val) => setDraft({ ...draft, [dk]: val })}
-                        />
-                      </div>
-                    ))}
+                    {dateGroup.map((dk) => {
+                      const raw = String(draft[dk] ?? "");
+                      const dateVal = toDateInput(raw);
+                      const timeVal = toTimeInput(raw);
+                      return (
+                        <div key={dk}>
+                          <label className="label">{getLabel(dk)}</label>
+                          <DatePicker
+                            value={dateVal}
+                            timeValue={timeVal}
+                            onChange={(v) => setDraft({ ...draft, [dk]: combineDateTime(v, timeVal) })}
+                            onTimeChange={(v) => setDraft({ ...draft, [dk]: combineDateTime(dateVal, v) })}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>,
                 );
               } else if (isShort) {
@@ -1307,7 +1951,7 @@ function EditEntryModal({
           })()}
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-apple-separator-light">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-4 sm:px-5 py-3 sm:py-3.5 border-t border-apple-separator-light">
           <div className="flex items-center gap-3">
             {!isNew && (
               <button
@@ -1322,11 +1966,11 @@ function EditEntryModal({
             )}
             {error && <div className="text-[12px] text-apple-red">{error}</div>}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="btn-secondary" disabled={busy}>
+          <div className="flex items-center gap-2 justify-end">
+            <button onClick={onClose} className="btn-secondary flex-1 sm:flex-none" disabled={busy}>
               Cancel
             </button>
-            <button onClick={save} className="btn-primary" disabled={busy}>
+            <button onClick={save} className="btn-primary flex-1 sm:flex-none" disabled={busy}>
               {busy ? (
                 <Icon name="refresh" size={15} className="animate-spin" />
               ) : (
@@ -1374,7 +2018,16 @@ function EscalationRuleCard({
 
   return (
     <article
-      className={`card p-5 hover:shadow-apple transition-shadow ${muted ? "opacity-75" : ""}`}
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit();
+        }
+      }}
+      className={`card p-4 sm:p-5 hover:shadow-apple transition-shadow cursor-pointer text-left min-w-0 overflow-hidden ${muted ? "opacity-75" : ""}`}
     >
       <header className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
@@ -1382,25 +2035,15 @@ function EscalationRuleCard({
             {parsed.category || "(untitled rule)"}
           </h2>
           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-            {channel && (
-              <span className="badge badge-gray capitalize">
-                {channel.replace(/_/g, " ")}
-              </span>
-            )}
             <span className={`badge ${badgeFor(entry.status)}`}>{entry.status}</span>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
-            onClick={onEdit}
-            className="btn-ghost !px-2 !py-1 !text-[12px]"
-            aria-label="Edit rule"
-            title="Edit"
-          >
-            <Icon name="pencil" size={12} /> Edit
-          </button>
-          <button
-            onClick={onDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
             className="btn-ghost !px-2 !py-1 !text-[12px] text-apple-red hover:!bg-red-50 hover:!text-red-700"
             aria-label="Delete rule"
             title="Delete"
@@ -1415,7 +2058,7 @@ function EscalationRuleCard({
           {parsed.keywords && (
             <div className="sm:col-span-2">
               <div className="text-[11px] uppercase tracking-[0.06em] font-medium text-apple-tertiary mb-1">
-                Keywords
+                Triggers
               </div>
               <div className="flex flex-wrap gap-1">
                 {parsed.keywords
@@ -1445,6 +2088,89 @@ function EscalationRuleCard({
         </div>
       )}
     </article>
+  );
+}
+
+function TriggerChipInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const chips = useMemo(
+    () => value.split(/,\s*/).map((s) => s.trim()).filter(Boolean),
+    [value],
+  );
+  const [draft, setDraft] = useState("");
+
+  const write = (next: string[]) => onChange(next.join(", "));
+  const commit = (raw: string) => {
+    const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!parts.length) {
+      setDraft("");
+      return;
+    }
+    const seen = new Set(chips.map((c) => c.toLowerCase()));
+    const added: string[] = [];
+    for (const p of parts) {
+      const k = p.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      added.push(p);
+    }
+    if (added.length) write([...chips, ...added]);
+    setDraft("");
+  };
+
+  return (
+    <div className="input-apple flex flex-wrap gap-1.5 min-h-[38px] py-1.5">
+      {chips.map((c, i) => (
+        <span
+          key={`${c}-${i}`}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-apple-separator-light text-[12px] text-apple-secondary"
+        >
+          {c}
+          <button
+            type="button"
+            onClick={() => write(chips.filter((_, j) => j !== i))}
+            className="text-apple-tertiary hover:text-apple-red"
+            aria-label={`Remove ${c}`}
+          >
+            <Icon name="close" size={10} />
+          </button>
+        </span>
+      ))}
+      <input
+        type="text"
+        value={draft}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v.endsWith(",")) commit(v.slice(0, -1));
+          else setDraft(v);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit(draft);
+          } else if (e.key === "Backspace" && draft === "" && chips.length) {
+            write(chips.slice(0, -1));
+          }
+        }}
+        onBlur={() => {
+          if (draft.trim()) commit(draft);
+        }}
+        onPaste={(e) => {
+          const txt = e.clipboardData.getData("text");
+          if (txt.includes(",")) {
+            e.preventDefault();
+            commit(txt);
+          }
+        }}
+        className="flex-1 min-w-[120px] bg-transparent outline-none text-[14px]"
+        placeholder={chips.length ? "Add another…" : "Type a trigger and press Enter"}
+      />
+    </div>
   );
 }
 
@@ -1478,6 +2204,9 @@ function EscalationRuleEditModal({
       webhook_url: String(d.webhook_url ?? ""),
     };
   });
+  const [active, setActive] = useState<boolean>(
+    (entry.status ?? "active").toLowerCase() !== "inactive",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1508,6 +2237,7 @@ function EscalationRuleEditModal({
           method: "PATCH",
           body: JSON.stringify({ data, changeSummary: "manual edit" }),
         });
+        setEntryActive(slug, entry.id, active);
       }
       onSaved();
     } catch (err) {
@@ -1527,14 +2257,14 @@ function EscalationRuleEditModal({
       role="dialog"
       aria-modal="true"
       aria-label="Edit escalation rule"
-      className="fixed inset-0 z-50 grid place-items-center bg-black/30 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/30 backdrop-blur-sm p-2 sm:p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="card w-full max-w-2xl max-h-[88vh] flex flex-col animate-scale-in"
+        className="card w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col animate-scale-in"
       >
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-apple-separator-light">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-apple-separator-light">
           <div className="min-w-0 flex-1 mr-3">
             <div className="text-[15px] font-semibold text-apple-text">
               {isNew ? "New escalation rule" : "Edit escalation rule"}
@@ -1560,6 +2290,36 @@ function EscalationRuleEditModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {!isNew && (
+            <div className="flex items-center justify-between rounded-apple border border-apple-separator-light bg-[#FAFAFA] px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-[13px] font-medium text-apple-text">
+                  {active ? "Active" : "Inactive"}
+                </div>
+                <div className="text-[11px] text-apple-tertiary">
+                  {active
+                    ? "Rule is live and will trigger escalations"
+                    : "Rule is paused and will not trigger"}
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={active}
+                aria-label={active ? "Deactivate rule" : "Activate rule"}
+                onClick={() => setActive((v) => !v)}
+                className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors ${
+                  active ? "bg-pair" : "bg-[#E5E5EA]"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    active ? "translate-x-[18px]" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
           <div>
             <label className="label">Category</label>
             <input
@@ -1571,13 +2331,10 @@ function EscalationRuleEditModal({
             />
           </div>
           <div>
-            <label className="label">Keywords</label>
-            <input
-              type="text"
-              className="input-apple"
+            <label className="label">Triggers</label>
+            <TriggerChipInput
               value={form.keywords}
-              onChange={(e) => set("keywords", e.target.value)}
-              placeholder="comma separated"
+              onChange={(v) => set("keywords", v)}
             />
           </div>
           <div className="text-[13px] text-apple-secondary">
@@ -1594,7 +2351,7 @@ function EscalationRuleEditModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-apple-separator-light">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-4 sm:px-5 py-3 sm:py-3.5 border-t border-apple-separator-light">
           <div className="flex items-center gap-3">
             {!isNew && (
               <button
@@ -1612,11 +2369,11 @@ function EscalationRuleEditModal({
             )}
             {error && <div className="text-[12px] text-apple-red">{error}</div>}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="btn-secondary" disabled={busy}>
+          <div className="flex items-center gap-2 justify-end">
+            <button onClick={onClose} className="btn-secondary flex-1 sm:flex-none" disabled={busy}>
               Cancel
             </button>
-            <button onClick={save} className="btn-primary" disabled={!canSave}>
+            <button onClick={save} className="btn-primary flex-1 sm:flex-none" disabled={!canSave}>
               {busy ? (
                 <Icon name="refresh" size={15} className="animate-spin" />
               ) : (

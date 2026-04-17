@@ -33,8 +33,8 @@ export const MARKETPLACE: MarketplaceModule[] = [
     fields: [
       { key: "name", label: "Name", type: "text", required: true, localized: false },
       { key: "type", label: "Type", type: "select", required: true, localized: false,
-        options: ["Promo", "Seasonal", "Bank", "Update", "Ops"] },
-      { key: "message", label: "Customer message", type: "textarea", required: true, localized: true },
+        options: ["Promo", "Seasonal", "Bank"] },
+      { key: "message", label: "Offer content", type: "textarea", required: true, localized: true },
       { key: "start_date", label: "Start", type: "date", required: false, localized: false },
       { key: "end_date", label: "End", type: "date", required: false, localized: false },
     ],

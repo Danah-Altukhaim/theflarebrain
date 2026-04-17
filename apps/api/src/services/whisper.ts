@@ -17,6 +17,11 @@ export async function transcribe(file: Buffer, filename: string, language?: "en"
   const blob = new File([ab], filename);
   const params: any = { file: blob, model: "whisper-1" };
   if (language) params.language = language;
-  const resp = await openai.audio.transcriptions.create(params);
-  return resp.text;
+  try {
+    const resp = await openai.audio.transcriptions.create(params);
+    return resp.text;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown transcription error";
+    throw new Error(`Transcription failed: ${message}`);
+  }
 }

@@ -5,9 +5,9 @@ import { useAuth } from "../state/auth.js";
 export function Login() {
   const setAuth = useAuth((s) => s.setAuth);
   const nav = useNavigate();
-  const [tenantSlug, setTenantSlug] = useState("future-kid");
-  const [email, setEmail] = useState("sara@example.com");
-  const [password, setPassword] = useState("password1");
+  const [tenantSlug, setTenantSlug] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -42,7 +42,7 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-surface-secondary px-4">
+    <div className="min-h-screen min-h-[100svh] flex items-center justify-center bg-surface-secondary px-4 sm:px-6 py-8 sm:py-12">
       <div className="w-full max-w-[420px] animate-scale-in">
         <div className="text-center mb-6">
           <h1 className="text-[24px] sm:text-[28px] font-semibold tracking-[-0.02em] text-apple-text">The Brain</h1>

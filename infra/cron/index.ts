@@ -26,6 +26,12 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(JSON.stringify({
+    level: "error",
+    job,
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+    timestamp: new Date().toISOString(),
+  }));
   process.exit(1);
 });

@@ -51,14 +51,14 @@ export const MODULES = [
       },
       {
         "key": "hours_regular",
-        "type": "textarea",
+        "type": "hours",
         "label": "Hours",
         "required": true,
         "localized": false
       },
       {
         "key": "hours_ramadan",
-        "type": "textarea",
+        "type": "hours",
         "label": "Ramadan hours",
         "required": false,
         "localized": false
@@ -132,16 +132,9 @@ export const MODULES = [
   {
     "id": "ee8f4713-d157-47e6-848a-9757ad82a1cb",
     "slug": "intents",
-    "label": "Intent Library",
+    "label": "Instructions",
     "icon": "target",
     "fieldDefinitions": [
-      {
-        "key": "intent_id",
-        "type": "text",
-        "label": "Intent ID",
-        "required": true,
-        "localized": false
-      },
       {
         "key": "name",
         "type": "text",
@@ -152,7 +145,7 @@ export const MODULES = [
       {
         "key": "description",
         "type": "textarea",
-        "label": "Description",
+        "label": "Intent",
         "required": false,
         "localized": false
       },
@@ -162,34 +155,13 @@ export const MODULES = [
         "label": "AI Instructions",
         "required": false,
         "localized": false
-      },
-      {
-        "key": "requires_crm",
-        "type": "boolean",
-        "label": "Requires CRM",
-        "required": false,
-        "localized": false
-      },
-      {
-        "key": "escalation_check",
-        "type": "boolean",
-        "label": "Escalation Check",
-        "required": false,
-        "localized": false
-      },
-      {
-        "key": "revenue_opportunity",
-        "type": "boolean",
-        "label": "Revenue Opportunity",
-        "required": false,
-        "localized": false
       }
     ]
   },
   {
     "id": "b265f169-81ec-451c-9b38-ca26e4d28dd9",
     "slug": "partners",
-    "label": "Partners & Discounts",
+    "label": "Partners",
     "icon": "handshake",
     "fieldDefinitions": [
       {
@@ -270,9 +242,7 @@ export const MODULES = [
         "options": [
           "Promo",
           "Seasonal",
-          "Bank",
-          "Update",
-          "Ops"
+          "Bank"
         ],
         "required": true,
         "localized": false
@@ -280,7 +250,7 @@ export const MODULES = [
       {
         "key": "message",
         "type": "textarea",
-        "label": "Customer message",
+        "label": "Offer description",
         "required": true,
         "localized": true
       },
@@ -313,12 +283,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "911a5f6d-4600-4625-bc63-508777a7dc04",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع الأفنيوز",
-        "name_en": "The Avenues Mall",
-        "governorate": "Farwaniya",
-        "hours_ramadan": "Daily: 10AM-2AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/The+Avenues+Mall/@29.3024914,47.9360719,17z"
+        "name_ar": "سوق السالمية، السالمية",
+        "name_en": "Souq Salmiya Mall, Salmiya",
+        "governorate": "Hawalli",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-12AM"}],
+        "google_maps_url": "https://maps.app.goo.gl/fJpx5oYZNaFG5Ege7"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -327,12 +297,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "e2bb7e0f-9c55-4e6d-928e-9ddec83b6ab1",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع 360",
-        "name_en": "360 Mall",
-        "governorate": "Hawalli",
-        "hours_ramadan": "Daily: 10AM-1AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/360+Mall/@29.2675753,47.9927896,17z"
+        "name_ar": "منتجع سليل الجهراء",
+        "name_en": "Slayel Mall, Al-Jahra",
+        "governorate": "Jahra",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Sun-Wed", "time": "10AM-11PM"}, {"days": "Thu", "time": "9AM-12AM"}, {"days": "Fri-Sat", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/KxY3mUq8HB3ybmVS6"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -341,12 +311,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "ec523444-a172-413a-91d1-22cc47bbcad8",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع الكوت",
-        "name_en": "Al Kout Mall",
+        "name_ar": "مجمع دوم أبو حليفة",
+        "name_en": "Dome Mall, Abu Hulaifa",
         "governorate": "Ahmadi",
-        "hours_ramadan": "Daily: 10AM-1AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Al+Kout+Mall/@29.0783668,48.138673,17z"
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/C37nrqDVA9oqrRyp8"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -355,12 +325,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "ceeaf2e1-85f1-4fb7-82f0-1f35c2adcb38",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع المارينا",
-        "name_en": "Marina Mall",
+        "name_ar": "مجمع البيرق العقيلة",
+        "name_en": "Bairaq Mall, Eqaila",
         "governorate": "Ahmadi",
-        "hours_ramadan": "Daily: 10AM-1AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Marina+Mall/@29.3392739,48.0656684,17z"
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/CHAMnkzbk9gSaUTu9"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -369,12 +339,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "a524a654-c07a-4119-9a21-d4dd35dda553",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع ذا غيت",
-        "name_en": "The Gate Mall",
-        "governorate": "Farwaniya",
-        "hours_ramadan": "Daily: 10AM-1AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/The+Gate+Mall/@29.174937,48.098186,17z"
+        "name_ar": "جمعية شرق",
+        "name_en": "Sharq Co-Op",
+        "governorate": "Hawalli",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/vaTxRn6hDcj7BWDA8"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -382,13 +352,13 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "9b17ce2f-e111-436c-9952-9a007473f61c",
       "data": {
-        "status": "Active",
-        "name_ar": "مجمع العاصمة",
-        "name_en": "Assima Mall",
+        "status": "CLOSED",
+        "name_ar": "مجمع سوق شرق",
+        "name_en": "Souq Sharq Mall",
         "governorate": "Al-Asimah",
-        "hours_ramadan": "Daily: 10AM-1AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Assima+Mall/@29.3742245,47.9875623,17z"
+        "hours_ramadan": [],
+        "hours_regular": [{"days": "Closed Dec 2025", "time": ""}],
+        "google_maps_url": ""
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -397,12 +367,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "c33b6849-925f-4cfe-81a2-0485d80acd6e",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع المروج",
-        "name_en": "Murooj Complex",
-        "governorate": "Farwaniya",
-        "hours_ramadan": "Daily: 10AM-12AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Al+Murouj+Complex/@29.2815,48.0010,17z"
+        "name_ar": "جمعية كيفان",
+        "name_en": "Kaifan Co-Op",
+        "governorate": "Al-Asimah",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/jvKo3VXoTWgG3miEA"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -411,12 +381,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "9c4c312d-355e-40cd-a93d-8056d95c8cfe",
       "data": {
         "status": "Active",
-        "name_ar": "فرع الجهراء",
-        "name_en": "Jahra Branch",
-        "governorate": "Jahra",
-        "hours_ramadan": "Daily: 10AM-12AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Al+Jahra/@29.336573,47.675529,15z"
+        "name_ar": "مجمع الليوان العقيلة",
+        "name_en": "Liwan Mall, Eqaila",
+        "governorate": "Ahmadi",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/NLSMK2rRXgNuodmN9"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -424,13 +394,13 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "79b189a1-6ca6-42b9-a7e0-bd75b0368543",
       "data": {
-        "status": "Active",
-        "name_ar": "منتجع صحارى للجولف",
-        "name_en": "Sahara Golf Resort",
-        "governorate": "Ahmadi",
-        "hours_ramadan": "Daily: 3PM-12AM",
-        "hours_regular": "Daily: 2PM-10PM\nFriday: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Sahara+Kuwait+Golf+Resort/@29.2650,47.9790,17z"
+        "status": "CLOSED",
+        "name_ar": "صافاة المباركية",
+        "name_en": "Safat Al Mubarakiya",
+        "governorate": "Al-Asimah",
+        "hours_ramadan": [],
+        "hours_regular": [{"days": "Closed Nov 2025", "time": ""}],
+        "google_maps_url": ""
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -439,12 +409,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "997c3e6d-5cb4-421b-8973-7bd9fe789a29",
       "data": {
         "status": "Active",
-        "name_ar": "مطار الكويت الدولي (صالة 4)",
-        "name_en": "Kuwait International Airport (T4)",
-        "governorate": "Farwaniya",
-        "hours_ramadan": "Daily: 24 hours",
-        "hours_regular": "Daily: 24 hours",
-        "google_maps_url": "https://www.google.com/maps/place/Kuwait+International+Airport+Terminal+4/@29.252226,47.961565,17z"
+        "name_ar": "مجمع أجيال فحيحيل",
+        "name_en": "Ajyal Mall, Fahaheel",
+        "governorate": "Ahmadi",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/WGnuiJmJBStaYaaq9"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -453,12 +423,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "d90d6bb5-a5aa-4bf9-b22e-3e78396ec0c0",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع الفنار",
-        "name_en": "Al Fanar Mall",
-        "governorate": "Hawalli",
-        "hours_ramadan": "Daily: 10AM-1AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Al+Fanar+Mall/@29.341112,48.0737,17z"
+        "name_ar": "مجمع أوتاد خيطان",
+        "name_en": "Awtad Mall, Khaitan",
+        "governorate": "Farwaniya",
+        "hours_ramadan": [{"days": "Sun-Thu", "time": "11AM-4PM; 8PM-12:30AM"}, {"days": "Fri", "time": "1PM-4PM; 8PM-12:30AM"}, {"days": "Sat", "time": "11AM-4PM; 8PM-12:30AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/4omayE93NPtRq9wq5"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -466,13 +436,13 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "4c162963-2247-4aca-bad0-3e272a13370a",
       "data": {
-        "status": "Temp Closed",
-        "name_ar": "مجمع ديسكفري",
-        "name_en": "Discovery Mall",
+        "status": "Active",
+        "name_ar": "مجمع فود سيركل مشرف",
+        "name_en": "Food Circle Mall, Mishref",
         "governorate": "Hawalli",
-        "hours_ramadan": "Temporarily closed; will reopen after renovation",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Discovery+Mall/@29.360807,47.9824,17z"
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/YcQ3s8WbS2uLaMbn6"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -481,12 +451,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "1b8c0568-fc65-4d8b-9315-60602114128a",
       "data": {
         "status": "Active",
-        "name_ar": "فرع السالمية",
-        "name_en": "Salmiya Branch",
-        "governorate": "Hawalli",
-        "hours_ramadan": "Daily: 10AM-1AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Salmiya/@29.335873,48.071986,15z"
+        "name_ar": "مجمع اوتاد الجهراء",
+        "name_en": "Awtad Mall, Al-Jahra",
+        "governorate": "Jahra",
+        "hours_ramadan": [{"days": "Sun-Thu", "time": "11AM-4PM; 8PM-12:30AM"}, {"days": "Fri", "time": "1PM-4PM; 8PM-12:30AM"}, {"days": "Sat", "time": "11AM-4PM; 8PM-12:30AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/gvFEyp2mq67Y7Ngj9"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -495,12 +465,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "b2d50f57-7e96-4f23-a3a1-660a15894749",
       "data": {
         "status": "Active",
-        "name_ar": "مجمع أوتاد",
-        "name_en": "Awtad Mall",
-        "governorate": "Jahra",
-        "hours_ramadan": "Daily: 10AM-12AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Awtad+Mall+Jahra/@29.34796,47.67367,17z"
+        "name_ar": "جمعية اليرموك",
+        "name_en": "Yarmouk Co-Op",
+        "governorate": "Al-Asimah",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/iLbJ8MqowXBmzb416"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -509,12 +479,12 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "id": "bd2f6ca6-5e9a-4135-b8ef-03d7360c4c7b",
       "data": {
         "status": "Active",
-        "name_ar": "فرع أبو حليفة",
-        "name_en": "Abu Halifa Branch",
-        "governorate": "Ahmadi",
-        "hours_ramadan": "Daily: 10AM-12AM",
-        "hours_regular": "Sun-Wed: 10AM-10PM\nThu-Sat: 10AM-11PM",
-        "google_maps_url": "https://www.google.com/maps/place/Abu+Halifa/@29.127176,48.125024,15z"
+        "name_ar": "جمعية الدعية",
+        "name_en": "Daiya Co-Op",
+        "governorate": "Al-Asimah",
+        "hours_ramadan": [{"days": "Daily", "time": "11AM-4PM; 8PM-1AM"}],
+        "hours_regular": [{"days": "Daily", "time": "10AM-11PM"}],
+        "google_maps_url": "https://maps.app.goo.gl/VnvnX9jhcwfw8B7o6"
       },
       "status": "active",
       "updatedAt": "2026-04-16T06:18:13.061Z"
@@ -567,16 +537,6 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
         "channel": "human_chat",
         "trigger": "Technical Issue - website down, can't pay, error, app. Escalate to IT Support. SLA: 4 hours. Auto: We're aware of the issue and working on it. Apologies for the inconvenience.",
         "webhook_url": "https://hooks.internal.futurekid.com/escalations/technical"
-      },
-      "status": "active",
-      "updatedAt": "2026-04-16T12:33:33.698Z"
-    },
-    {
-      "id": "71088e5d-624e-44a4-b657-d7f5e2b1c805",
-      "data": {
-        "channel": "whatsapp",
-        "trigger": "General Inquiry - hours, location, prices, packages. Handled by PAIR AI. No escalation needed.",
-        "webhook_url": "https://hooks.internal.futurekid.com/routing/general"
       },
       "status": "active",
       "updatedAt": "2026-04-16T12:33:33.698Z"
@@ -2590,20 +2550,6 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       },
       "status": "active",
       "updatedAt": "2026-04-14T18:52:17.962Z"
-    },
-    {
-      "id": "f022a055-25e2-415d-a63b-fbdd767c057c",
-      "data": {
-        "name": "Branch Hours",
-        "intent_id": "INT-001",
-        "description": "test",
-        "requires_crm": false,
-        "ai_instructions": "Respond using the Branches module. Send the regular opening and closing hours for the branch the customer named. If no branch was named, ask which branch first. For Ramadan hours, route to INT-009 instead.",
-        "escalation_check": false,
-        "revenue_opportunity": false
-      },
-      "status": "active",
-      "updatedAt": "2026-04-14T18:51:31.169Z"
     }
   ],
   "partners": [
@@ -2630,15 +2576,136 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       "updatedAt": "2026-04-14T18:52:17.940Z"
     },
     {
-      "id": "f9189d34-8807-48f7-bbca-e2e65e48d528",
+      "id": "a4f5b3c8-bb44-4a31-b2d6-f39b1796ee8e",
       "data": {
-        "name": "Al-Arfaj",
-        "type": "Corporate",
-        "notes_ar": "20% discount for first responders (government/armed-forces/ministry employees). ID required at branch.",
-        "notes_en": "20% discount for first responders (government/armed-forces/ministry employees). ID required at branch."
+        "name": "NBK",
+        "type": "Bank",
+        "notes_ar": "خصم 30% على الألعاب عند الدفع ببطاقة NBK خلال يوليو 2026 (01/07 - 31/07).",
+        "notes_en": "30% off rides with NBK cards during July 2026 (01/07 - 31/07)."
       },
       "status": "active",
-      "updatedAt": "2026-04-14T18:49:05.831Z"
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "ccddd8d5-686f-40a8-9f12-c9f04864645a",
+      "data": {
+        "name": "Burgan Bank",
+        "type": "Bank",
+        "notes_ar": "خصم 10% عند الدفع ببطاقة بنك برقان. ساري حتى 30/09/2026.",
+        "notes_en": "10% discount when paying with Burgan Bank cards. Valid through 30/09/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "e02df663-85a5-4770-9bf9-7f47f796d5f5",
+      "data": {
+        "name": "Gulf Bank",
+        "type": "Bank",
+        "notes_ar": "خصم 10% عند الدفع ببطاقة بنك الخليج. ساري حتى 31/08/2026.",
+        "notes_en": "10% discount when paying with Gulf Bank cards. Valid through 31/08/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "843081d8-2935-4e1e-9c82-30d92938636d",
+      "data": {
+        "name": "Al Tijari (CBK)",
+        "type": "Bank",
+        "notes_ar": "خصم 10% عند الدفع ببطاقة البنك التجاري الكويتي. ساري حتى 30/06/2026.",
+        "notes_en": "10% discount when paying with Commercial Bank of Kuwait cards. Valid through 30/06/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "6350a48b-5b18-4ff3-8ccf-1333d4d2754c",
+      "data": {
+        "name": "KFH",
+        "type": "Bank",
+        "notes_ar": "خصم 10% عند الدفع ببطاقة بيت التمويل الكويتي. ساري حتى 31/12/2026.",
+        "notes_en": "10% discount when paying with Kuwait Finance House cards. Valid through 31/12/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "fc66ce58-fb53-4c39-bb38-61fc1c20fb62",
+      "data": {
+        "name": "Adventure Key",
+        "type": "Loyalty",
+        "notes_ar": "شريك تطبيق الخصومات Adventure Key. العرض فعّال حتى 31/07/2026.",
+        "notes_en": "Adventure Key partner app. Offer active through 31/07/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "f8cad013-71d2-4ef7-bd8a-f8fef007cad8",
+      "data": {
+        "name": "CocoPark",
+        "type": "Loyalty",
+        "notes_ar": "شريك تطبيق CocoPark. العرض فعّال حتى 29/09/2026.",
+        "notes_en": "CocoPark partner app. Offer active through 29/09/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "4e4da678-c67e-4383-9ac6-df8faf165a07",
+      "data": {
+        "name": "Entertainer",
+        "type": "Loyalty",
+        "notes_ar": "شريك تطبيق Entertainer. العرض فعّال حتى 31/12/2026.",
+        "notes_en": "Entertainer partner app. Offer active through 31/12/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "c46f6112-6816-447e-be5a-a28ec0896021",
+      "data": {
+        "name": "Eventat",
+        "type": "Loyalty",
+        "notes_ar": "شريك تطبيق Eventat. العرض فعّال حتى 31/08/2026.",
+        "notes_en": "Eventat partner app. Offer active through 31/08/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "317793a9-0561-4e0e-9cc0-55adfc6b7081",
+      "data": {
+        "name": "I-Card",
+        "type": "Loyalty",
+        "notes_ar": "شريك تطبيق I-Card. العرض فعّال حتى 14/01/2027.",
+        "notes_en": "I-Card partner app. Offer active through 14/01/2027."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "5891c4d4-1116-4124-8c87-0c6ae0bde696",
+      "data": {
+        "name": "OG Money",
+        "type": "Loyalty",
+        "notes_ar": "شريك تطبيق OG Money. العرض فعّال حتى 30/06/2026.",
+        "notes_en": "OG Money partner app. Offer active through 30/06/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
+    },
+    {
+      "id": "3a850e8e-d699-40c4-907a-ea8b0a42f01d",
+      "data": {
+        "name": "Sheri Kids",
+        "type": "Loyalty",
+        "notes_ar": "شريك تطبيق Sheri Kids. العرض فعّال حتى 29/09/2026.",
+        "notes_en": "Sheri Kids partner app. Offer active through 29/09/2026."
+      },
+      "status": "active",
+      "updatedAt": "2026-04-17T00:00:00.000Z"
     }
   ],
   "policy_matrix": [
@@ -3735,32 +3802,6 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
       },
       "status": "active",
       "updatedAt": "2026-04-16T05:44:19.283Z"
-    },
-    {
-      "id": "a4f5b3c8-bb44-4a31-b2d6-f39b1796ee8e",
-      "data": {
-        "name": "NBK Summer Promo",
-        "type": "Bank",
-        "end_date": "2026-07-31T23:59:59.000Z",
-        "message_ar": "خصم 30% على الألعاب عند الدفع ببطاقة NBK خلال يوليو",
-        "message_en": "30% off rides with NBK cards this July",
-        "start_date": "2026-07-01T00:00:00.000Z"
-      },
-      "status": "active",
-      "updatedAt": "2026-04-16T03:39:16.105Z"
-    },
-    {
-      "id": "c83690c1-a0c0-4b30-a46d-58950bb19ebc",
-      "data": {
-        "name": "Sheeel Recharge Offers",
-        "type": "Promo",
-        "end_date": "2027-03-31T00:00:00.000Z",
-        "message_ar": "- اشحن بـ 5 د.ك واحصل على 10 د.ك - اشحن بـ 10 د.ك واحصل على 20 د.ك",
-        "message_en": "- Buy 5KD and Get 10KD - Buy 10KD and Get 20KD",
-        "start_date": "2026-04-01T00:00:00.000Z"
-      },
-      "status": "active",
-      "updatedAt": "2026-04-15T18:34:35.870Z"
     },
     {
       "id": "5bf17afd-e704-4400-9d93-13746b923f9b",

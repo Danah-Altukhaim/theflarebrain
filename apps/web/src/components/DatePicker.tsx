@@ -23,17 +23,22 @@ function formatDisplay(value: string): string {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const DROPDOWN_HEIGHT = 320;
+const DROPDOWN_HEIGHT = 380;
 
 export function DatePicker({
   value,
   onChange,
+  timeValue,
+  onTimeChange,
   className,
 }: {
   value: string;
   onChange: (val: string) => void;
+  timeValue?: string;
+  onTimeChange?: (val: string) => void;
   className?: string;
 }) {
+  const hasTime = typeof timeValue === "string" && typeof onTimeChange === "function";
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -111,14 +116,14 @@ export function DatePicker({
     const m = String(viewMonth + 1).padStart(2, "0");
     const d = String(day).padStart(2, "0");
     onChange(`${viewYear}-${m}-${d}`);
-    setOpen(false);
+    if (!hasTime) setOpen(false);
   }
 
   function selectToday() {
     const m = String(today.getMonth() + 1).padStart(2, "0");
     const d = String(today.getDate()).padStart(2, "0");
     onChange(`${today.getFullYear()}-${m}-${d}`);
-    setOpen(false);
+    if (!hasTime) setOpen(false);
   }
 
   const totalDays = daysInMonth(viewYear, viewMonth);
@@ -145,7 +150,11 @@ export function DatePicker({
         className="input-apple flex items-center justify-between text-left cursor-pointer"
       >
         <span className={value ? "text-apple-text" : "text-apple-tertiary"}>
-          {value ? formatDisplay(value) : "Select date"}
+          {value
+            ? hasTime && timeValue
+              ? `${formatDisplay(value)}, ${timeValue}`
+              : formatDisplay(value)
+            : hasTime ? "Select date & time" : "Select date"}
         </span>
         <Icon name="calendar-check" size={15} className="text-apple-tertiary" />
       </button>
@@ -230,22 +239,52 @@ export function DatePicker({
             })}
           </div>
 
+          {hasTime && (
+            <div className="flex items-center gap-2 px-3.5 py-2.5 border-t border-apple-separator">
+              <Icon name="clock" size={14} className="text-apple-tertiary shrink-0" />
+              <span className="text-[12px] font-medium text-apple-secondary">Time</span>
+              <input
+                type="time"
+                value={timeValue}
+                disabled={!value}
+                onChange={(e) => onTimeChange?.(e.target.value)}
+                className="input-apple ml-auto !py-1 !px-2 !text-[12px] w-[104px] shrink-0 cursor-pointer tabular-nums disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Time"
+              />
+            </div>
+          )}
+
           {/* Footer */}
           <div className="flex items-center justify-between px-3.5 py-2 border-t border-apple-separator">
             <button
               type="button"
-              onClick={() => { onChange(""); setOpen(false); }}
+              onClick={() => {
+                onChange("");
+                if (hasTime) onTimeChange?.("");
+                setOpen(false);
+              }}
               className="text-[12px] font-medium text-apple-secondary hover:text-apple-red transition-colors"
             >
               Clear
             </button>
-            <button
-              type="button"
-              onClick={selectToday}
-              className="text-[12px] font-medium text-pair hover:text-pair-hover transition-colors"
-            >
-              Today
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={selectToday}
+                className="text-[12px] font-medium text-apple-secondary hover:text-apple-text transition-colors"
+              >
+                Today
+              </button>
+              {hasTime && (
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="text-[12px] font-semibold text-pair hover:text-pair-hover transition-colors"
+                >
+                  Done
+                </button>
+              )}
+            </div>
           </div>
         </div>,
         document.body,

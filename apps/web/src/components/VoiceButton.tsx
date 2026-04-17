@@ -22,6 +22,9 @@ export function VoiceButton({
     mr.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop());
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      if (blob.size > 25 * 1024 * 1024) {
+        return; // 25MB limit
+      }
       setBusy(true);
       try {
         const fd = new FormData();

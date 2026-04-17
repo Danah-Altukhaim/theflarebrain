@@ -3,6 +3,8 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { nanoid } from "nanoid";
 import { env } from "./lib/env.js";
+import { prisma } from "./lib/prisma.js";
+import { redis } from "./lib/redis.js";
 import tenantContext from "./plugins/tenant-context.js";
 import auth from "./plugins/auth.js";
 import apiKey from "./plugins/api-key.js";
@@ -25,13 +27,15 @@ export async function buildApp() {
     logger: { level: env.LOG_LEVEL },
     genReqId: () => nanoid(12),
     disableRequestLogging: false,
+    bodyLimit: 1_048_576,
   });
 
   app.addHook("onRequest", async (req, reply) => {
     reply.header("x-request-id", req.id);
   });
 
-  await app.register(cors, { origin: true, credentials: true });
+  const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+  await app.register(cors, { origin: allowedOrigins, credentials: true });
   await app.register(rateLimit, {
     max: 200,
     timeWindow: "1 minute",
@@ -42,12 +46,26 @@ export async function buildApp() {
   await app.register(auth);
   await app.register(apiKey);
 
-  app.get("/health", async () => ({ success: true, data: { status: "ok" } }));
-
-  app.get("/", async (_req, reply) => {
-    // Wrong port; this is the API. Send users to the web app.
-    return reply.redirect(302, "http://localhost:5173");
+  app.get("/health", async () => {
+    let db = false;
+    let redisOk = false;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      db = true;
+    } catch { /* db unreachable */ }
+    try {
+      redisOk = (await redis.ping()) === "PONG";
+    } catch { /* redis unreachable */ }
+    return {
+      success: true,
+      data: { status: db && redisOk ? "ok" : "degraded", db, redis: redisOk, timestamp: new Date().toISOString() },
+    };
   });
+
+  app.get("/", async () => ({
+    success: true,
+    data: { message: "The Brain API. See /health for status." },
+  }));
 
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(adminRoutes, { prefix: "/api/v1/admin" });
@@ -68,6 +86,17 @@ export async function buildApp() {
 async function main() {
   const app = await buildApp();
   await app.listen({ host: "0.0.0.0", port: env.PORT });
+
+  async function shutdown(signal: string) {
+    app.log.info(`${signal} received, shutting down`);
+    await app.close();
+    await prisma.$disconnect();
+    await redis.quit();
+    process.exit(0);
+  }
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 main().catch((err) => {

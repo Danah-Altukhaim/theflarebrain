@@ -10,7 +10,14 @@ export const FieldType = z.enum([
   "media",
   "relation",
   "url",
+  "hours",
 ]);
+
+export const HoursEntry = z.object({
+  days: z.string().min(1),
+  time: z.string().min(1),
+});
+export type HoursEntry = z.infer<typeof HoursEntry>;
 export type FieldType = z.infer<typeof FieldType>;
 
 export const FieldDefinition = z.object({
@@ -62,6 +69,9 @@ export function buildEntryDataSchema(fields: FieldDefinition[]): z.ZodType {
         break;
       case "relation":
         base = z.string().uuid();
+        break;
+      case "hours":
+        base = z.array(HoursEntry);
         break;
     }
     if (f.localized) {

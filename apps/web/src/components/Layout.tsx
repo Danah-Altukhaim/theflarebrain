@@ -83,7 +83,6 @@ export function Layout() {
 
   const workspaceLinks: Array<{ to: string; label: string; icon: string; end?: boolean }> = [
     { to: "/", label: "Knowledge", icon: "folder", end: true },
-    { to: "/chat", label: "Brain Chat", icon: "message-bubble" },
     { to: "/activity", label: "Activity", icon: "activity" },
   ];
   if (user?.role === "PAIR_ADMIN") {
@@ -109,7 +108,6 @@ export function Layout() {
           </button>
         ) : (
           <>
-            <img src="/pair-logo.png" alt="Pair" className="h-7 w-auto shrink-0 select-none" draggable={false} />
             <div className="leading-tight min-w-0 flex-1">
               <div className="text-[15px] font-semibold tracking-tight text-apple-text truncate">The Brain</div>
               <div className="text-[11px] text-apple-secondary truncate max-w-[160px]">{tenant?.name ?? "-"}</div>
@@ -174,8 +172,8 @@ export function Layout() {
 
   return (
     <div
-      className={`min-h-screen bg-[#FBFBFD] ${isMobile ? "" : "grid transition-[grid-template-columns] duration-200 ease-out"}`}
-      style={isMobile ? undefined : { gridTemplateColumns: `${collapsed ? 72 : 260}px 1fr` }}
+      className={`min-h-screen w-full max-w-full bg-[#FBFBFD] ${isMobile ? "" : "grid transition-[grid-template-columns] duration-200 ease-out"}`}
+      style={isMobile ? undefined : { gridTemplateColumns: `${collapsed ? 72 : 260}px minmax(0, 1fr)` }}
     >
       {/* ── Desktop sidebar ── */}
       {!isMobile && (
@@ -194,15 +192,15 @@ export function Layout() {
             aria-hidden="true"
           />
           {/* Drawer panel */}
-          <aside className="relative z-50 w-[280px] h-full flex flex-col bg-white shadow-apple-xl animate-slide-from-left">
+          <aside className="relative z-50 w-[min(280px,85vw)] h-full flex flex-col bg-white shadow-apple-xl animate-slide-from-left">
             {sidebarContent(true)}
           </aside>
         </div>
       )}
 
       {/* ── Main content ── */}
-      <main className="flex flex-col min-w-0">
-        <header className="glass-bar sticky top-0 z-10 h-14 flex items-center px-4 sm:px-6 gap-3">
+      <main className="flex flex-col min-w-0 min-h-screen md:min-h-0">
+        <header className="glass-bar sticky top-0 z-10 h-14 flex items-center px-3 sm:px-6 gap-2 sm:gap-3">
           {/* Mobile hamburger */}
           {isMobile && (
             <button
@@ -241,15 +239,12 @@ export function Layout() {
               <button className="sm:hidden inline-flex items-center justify-center rounded-apple p-2 text-apple-secondary hover:bg-black/[0.05] transition-colors" title="Search">
                 <Icon name="search" size={18} />
               </button>
-              <button className="hidden sm:inline-flex btn-ghost" title="Account">
-                <Icon name="user-circle" size={16} />
-              </button>
             </div>
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4 sm:p-6 lg:p-8 animate-fade-in">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+          <div className="p-4 sm:p-6 lg:p-8 animate-fade-in min-w-0">
             <Outlet context={{ title }} />
           </div>
         </div>

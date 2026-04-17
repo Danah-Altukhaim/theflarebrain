@@ -34,7 +34,7 @@ const plugin: FastifyPluginAsync = async (app) => {
         await tx.$executeRaw`SELECT set_config('app.tenant_id', ${key.tenantId}, true)`;
         await tx.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } });
       })
-      .catch(() => {});
+      .catch((err) => req.log.warn({ err }, "api-key lastUsedAt update failed"));
   });
 };
 

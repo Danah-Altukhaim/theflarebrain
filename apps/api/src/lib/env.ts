@@ -13,6 +13,7 @@ const Env = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  CORS_ORIGIN: z.string().default("http://localhost:5173"),
 });
 
 export const env = Env.parse(process.env);
