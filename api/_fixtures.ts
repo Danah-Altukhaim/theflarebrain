@@ -3659,11 +3659,11 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "0221e17d-d7f4-4c6b-b99b-781b1e52baa6",
       "data": {
-        "policy_ar": "خصومات خاصة للمجموعات (الحد الأدنى 10 أشخاص)، برامج من ساعتين إلى ثلاث ساعات. الحجز: 66992766.",
+        "policy_ar": "خصومات خاصة للمجموعات (أقل شي 10 أشخاص)، برامج من ساعتين لثلاث ساعات. الحجز: 66992766.",
         "policy_en": "Special discounts for groups (min 10 people), 2-3 hour programs. Booking: 66992766",
-        "scenario_ar": "رحلات المجموعات والمدارس",
+        "scenario_ar": "رحلات مجموعات / مدارس",
         "scenario_en": "Group Trips / School Trips",
-        "exception_ar": "لا، لا تُشارَك الأرقام عبر الذكاء الاصطناعي",
+        "exception_ar": "لا - ما تشارك رقم التلفون عبر الذكاء الاصطناعي",
         "exception_en": "No - Do NOT share phone # via AI"
       },
       "status": "active",
@@ -3672,7 +3672,7 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "27a4f785-4e94-4341-b10b-7222ae782203",
       "data": {
-        "policy_ar": "يمكنني التحويل إلى موظف لمزيد من التفاصيل، لكن لا تتوفر لدي هذه المعلومة.",
+        "policy_ar": "أقدر أحولك لموظف يعطيك تفاصيل أكثر، بس هذي المعلومة مو عندي.",
         "policy_en": "I can connect to an agent to get more details but I don't have that info.",
         "scenario_ar": "تكلفة اللعبة",
         "scenario_en": "Cost of Ride",
@@ -3685,7 +3685,7 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "cf56e86a-9514-471f-93a5-470183e59da7",
       "data": {
-        "policy_ar": "متوفرة طوال الأسبوع. يتم تحديد المواعيد عبر مديرة الرحلات.",
+        "policy_ar": "متوفرة طول الأسبوع. المواعيد عن طريق مديرة الرحلات.",
         "policy_en": "Available all week. Timings via Trips Manager.",
         "scenario_ar": "جدولة رحلات المجموعات",
         "scenario_en": "Group Trip Scheduling",
@@ -3698,7 +3698,7 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "494c788a-34a4-48a8-a8b8-efedc8038e04",
       "data": {
-        "policy_ar": "الفضية (15 ضيفاً) والذهبية (25 ضيفاً). ضيوف إضافيون مقابل رسوم. في فروع مختارة.",
+        "policy_ar": "الفضي (15 ضيف) والذهبي (25 ضيف). ضيوف إضافيين برسوم. في فروع مختارة.",
         "policy_en": "Silver (15 guests) and Gold (25 guests). Extra guests for a fee. Selected branches.",
         "scenario_ar": "باقات عيد الميلاد",
         "scenario_en": "Birthday Packages",
@@ -3711,9 +3711,9 @@ export const ENTRIES_BY_SLUG: Record<string, Array<{
     {
       "id": "c877e499-2cd9-4c90-8903-8eeab9b3fe51",
       "data": {
-        "policy_ar": "لا يمكن إيقافه مؤقتاً. يُدفع كاملاً عند البداية، ولا يُجدَّد تلقائياً.",
+        "policy_ar": "ما يصير إيقافه مؤقتاً. يندفع كامل من البداية، وما يتجدّد تلقائياً.",
         "policy_en": "Cannot be paused. Paid in full at start, not auto-renewed.",
-        "scenario_ar": "الاشتراك، الإيقاف المؤقت",
+        "scenario_ar": "اشتراك - إيقاف مؤقت",
         "scenario_en": "Membership - Pause",
         "exception_ar": "لا",
         "exception_en": "No"
