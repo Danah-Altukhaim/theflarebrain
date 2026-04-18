@@ -41,7 +41,7 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
+    "@types/node": "^25.6.0",
     "embedded-postgres": "18.3.0-beta.17",
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^7.1.0",
