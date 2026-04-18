@@ -86,7 +86,7 @@ export function Knowledge() {
             Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>
           <p className="text-[13px] sm:text-[14px] text-apple-secondary mt-1 max-w-lg">
-            Your knowledge base at a glance. Browse modules, review entries, or jump into Brain Chat to make updates.
+            Your knowledge base at a glance. Browse modules or review entries.
           </p>
         </div>
 
