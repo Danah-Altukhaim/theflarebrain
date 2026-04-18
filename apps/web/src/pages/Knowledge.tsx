@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { filterVisibleModules } from "../lib/modules.js";
 import { Icon } from "../components/Icon.js";
@@ -20,16 +20,16 @@ const MODULE_ICON: Record<string, string> = {
 };
 
 const MODULE_COLOR: Record<string, { bg: string; text: string; ring: string }> = {
-  promotions:       { bg: "bg-orange-50",  text: "text-orange-600",  ring: "ring-orange-100" },
-  active_offers:    { bg: "bg-orange-50",  text: "text-orange-600",  ring: "ring-orange-100" },
-  "active-offers":  { bg: "bg-orange-50",  text: "text-orange-600",  ring: "ring-orange-100" },
-  branches:         { bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-100" },
-  escalation_rules: { bg: "bg-red-50",     text: "text-red-500",     ring: "ring-red-100" },
-  faqs:             { bg: "bg-violet-50",  text: "text-violet-600",  ring: "ring-violet-100" },
-  intents:          { bg: "bg-sky-50",     text: "text-sky-600",     ring: "ring-sky-100" },
-  partners:         { bg: "bg-amber-50",   text: "text-amber-600",   ring: "ring-amber-100" },
-  policy_matrix:    { bg: "bg-slate-50",   text: "text-slate-600",   ring: "ring-slate-100" },
-  documents:        { bg: "bg-indigo-50",  text: "text-indigo-600",  ring: "ring-indigo-100" },
+  promotions: { bg: "bg-orange-50", text: "text-orange-600", ring: "ring-orange-100" },
+  active_offers: { bg: "bg-orange-50", text: "text-orange-600", ring: "ring-orange-100" },
+  "active-offers": { bg: "bg-orange-50", text: "text-orange-600", ring: "ring-orange-100" },
+  branches: { bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-100" },
+  escalation_rules: { bg: "bg-red-50", text: "text-red-500", ring: "ring-red-100" },
+  faqs: { bg: "bg-violet-50", text: "text-violet-600", ring: "ring-violet-100" },
+  intents: { bg: "bg-sky-50", text: "text-sky-600", ring: "ring-sky-100" },
+  partners: { bg: "bg-amber-50", text: "text-amber-600", ring: "ring-amber-100" },
+  policy_matrix: { bg: "bg-slate-50", text: "text-slate-600", ring: "ring-slate-100" },
+  documents: { bg: "bg-indigo-50", text: "text-indigo-600", ring: "ring-indigo-100" },
 };
 
 const DEFAULT_COLOR = { bg: "bg-pair-light", text: "text-pair", ring: "ring-pair-light" };
@@ -39,19 +39,12 @@ function colorFor(slug: string) {
 }
 
 export function Knowledge() {
-  const { modules: allModules, loading, fetchModules } = useModules();
+  const { modules: allModules, loading } = useModules();
   const user = useAuth((s) => s.user);
-
-  useEffect(() => {
-    fetchModules();
-  }, [fetchModules]);
 
   const modules = useMemo(() => filterVisibleModules(allModules), [allModules]);
 
-  const totalEntries = useMemo(
-    () => modules.reduce((sum, m) => sum + m.entryCount, 0),
-    [modules],
-  );
+  const totalEntries = useMemo(() => modules.reduce((sum, m) => sum + m.entryCount, 0), [modules]);
 
   return (
     <div className="space-y-6">
@@ -73,11 +66,15 @@ export function Knowledge() {
         {modules.length > 0 && (
           <div className="relative z-10 flex items-center gap-2 sm:gap-3 mt-4 sm:mt-5">
             <div className="rounded-apple-lg bg-white/80 backdrop-blur-md px-4 py-2.5 sm:px-5 sm:py-3 border border-white/90 shadow-apple-sm hover:shadow-apple transition-shadow cursor-default">
-              <div className="text-[18px] sm:text-[20px] font-bold text-apple-text leading-tight">{modules.length}</div>
+              <div className="text-[18px] sm:text-[20px] font-bold text-apple-text leading-tight">
+                {modules.length}
+              </div>
               <div className="text-[11px] text-apple-secondary mt-0.5">Modules</div>
             </div>
             <div className="rounded-apple-lg bg-white/80 backdrop-blur-md px-4 py-2.5 sm:px-5 sm:py-3 border border-white/90 shadow-apple-sm hover:shadow-apple transition-shadow cursor-default">
-              <div className="text-[18px] sm:text-[20px] font-bold text-apple-text leading-tight">{totalEntries.toLocaleString()}</div>
+              <div className="text-[18px] sm:text-[20px] font-bold text-apple-text leading-tight">
+                {totalEntries.toLocaleString()}
+              </div>
               <div className="text-[11px] text-apple-secondary mt-0.5">Total entries</div>
             </div>
           </div>
@@ -121,7 +118,11 @@ export function Knowledge() {
                     {`${m.entryCount.toLocaleString()} entr${m.entryCount === 1 ? "y" : "ies"}`}
                   </div>
                 </div>
-                <Icon name="chevron-right" size={14} className="text-apple-tertiary group-hover:text-pair transition-colors shrink-0 ml-3" />
+                <Icon
+                  name="chevron-right"
+                  size={14}
+                  className="text-apple-tertiary group-hover:text-pair transition-colors shrink-0 ml-3"
+                />
               </Link>
             );
           })}
