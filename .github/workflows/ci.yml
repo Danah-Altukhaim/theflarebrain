@@ -52,6 +52,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @brain/api prisma migrate deploy
       - run: psql "$DATABASE_MIGRATE_URL" -f infra/migrations/0001_rls.sql
+      - run: psql "$DATABASE_MIGRATE_URL" -f infra/migrations/0002_admin_bypass.sql
       - run: pnpm seed
       - run: bash scripts/check-env-example.sh
       - run: pnpm lint
