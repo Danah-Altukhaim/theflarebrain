@@ -4,7 +4,6 @@ import { Icon } from "./Icon.js";
 
 const STEPS = [
   { title: "Welcome to The Brain", body: "Manage your AI agent's knowledge by chatting. No forms required." },
-  { title: "Brain Chat", body: "Type or speak what you want to change. The AI builds a preview card." },
   { title: "Modules", body: "Your content lives in modules on the left. Branches, promotions, FAQs…" },
   { title: "Try it", body: "Try: “What's in my knowledge base?”" },
   { title: "Preview cards", body: "Every AI edit shows a card. Tweak fields, then confirm." },
