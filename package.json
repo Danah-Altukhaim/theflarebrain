@@ -15,6 +15,11 @@
     "seed": "pnpm --filter @brain/api seed",
     "migrate": "pnpm --filter @brain/api prisma migrate deploy"
   },
+  "dependencies": {
+    "@vercel/node": "^5.0.0",
+    "@prisma/client": "^5.14.0",
+    "bcrypt": "^5.1.1"
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "eslint": "^9.0.0",
