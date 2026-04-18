@@ -76,7 +76,7 @@ export function Login() {
             <div className="flex-1 h-px bg-apple-separator" />
           </div>
 
-          <form onSubmit={(e) => submit(e)} className="space-y-3">
+          <form onSubmit={(e) => submit(e)} noValidate className="space-y-3">
             <div>
               <span className="label">Company</span>
               <input

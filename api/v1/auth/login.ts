@@ -5,6 +5,43 @@ import bcrypt from "bcryptjs";
 
 const DUMMY_HASH = "$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012";
 
+const DEMO = {
+  tenantSlug: "flare-fitness",
+  tenantName: "Flare Fitness",
+  timezone: "Asia/Kuwait",
+  email: "bayan@example.com",
+  name: "Bayan (Editor)",
+  role: "CLIENT_EDITOR" as const,
+  password: "password1",
+};
+
+// Upsert the public demo tenant+user so the "Enter demo" button works on a
+// prod DB that hasn't been seeded with bayan@example.com (or has drifted).
+// Only runs when the caller provides the exact hardcoded demo credentials.
+async function ensureDemoUser() {
+  const passwordHash = await bcrypt.hash(DEMO.password, 10);
+  await prisma.$transaction(async (tx: any) => {
+    await tx.$executeRawUnsafe(`SET LOCAL app.is_admin = 'true'`);
+    const tenant = await tx.tenant.upsert({
+      where: { slug: DEMO.tenantSlug },
+      create: { slug: DEMO.tenantSlug, name: DEMO.tenantName, timezone: DEMO.timezone },
+      update: {},
+    });
+    await tx.user.upsert({
+      where: { tenantId_email: { tenantId: tenant.id, email: DEMO.email } },
+      create: {
+        tenantId: tenant.id,
+        email: DEMO.email,
+        name: DEMO.name,
+        role: DEMO.role,
+        passwordHash,
+        walkthroughCompleted: true,
+      },
+      update: { passwordHash, walkthroughCompleted: true },
+    });
+  });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST")
     return res.status(405).json({ success: false, error: { message: "Method not allowed" } });
@@ -14,6 +51,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res
       .status(400)
       .json({ success: false, error: { message: "Email and password required" } });
+
+  if (tenantSlug === DEMO.tenantSlug && email === DEMO.email && password === DEMO.password) {
+    try {
+      await ensureDemoUser();
+    } catch (err) {
+      console.error("demo self-heal failed", err);
+    }
+  }
 
   const auth = await prisma.$transaction(async (tx: any) => {
     await tx.$executeRawUnsafe(`SET LOCAL app.is_admin = 'true'`);
