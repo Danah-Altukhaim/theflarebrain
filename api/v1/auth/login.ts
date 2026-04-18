@@ -56,7 +56,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       await ensureDemoUser();
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       console.error("demo self-heal failed", err);
+      return res.status(500).json({
+        success: false,
+        error: { code: "DEMO_SELFHEAL_FAILED", message },
+      });
     }
   }
 
