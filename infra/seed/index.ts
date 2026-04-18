@@ -1,18 +1,15 @@
 /**
- * Seed dev fixtures: two tenants (Future Kid + test-co), canonical modules, sample entries,
- * an API key per tenant, and one crafted "bad KB" row for gap-scan tests.
+ * Seed dev fixtures: the Future Kid tenant with canonical modules, sample entries,
+ * and an API key.
  *
  * The `future-kid` tenant is seeded from the static snapshot at `api/_fixtures.ts`
  * so local Postgres ends up with the same content that the Vercel demo serves.
- * The `test-co` tenant stays intentionally minimal (a handful of hand-rolled rows)
- * so tenant-isolation checks and gap-scan tests have a small, predictable dataset.
  *
  * Run: `pnpm seed`
  */
 import bcrypt from "bcrypt";
 import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
-import type { FieldDefinition } from "@brain/shared";
 import { MODULES, ENTRIES_BY_SLUG } from "../../api/_fixtures";
 
 const prisma = new PrismaClient({
@@ -125,115 +122,12 @@ async function seedFutureKid() {
     }
   }
 
-  // Gap-scan sentinel: one FAQ with missing Arabic, kept intentionally incomplete
-  // so translation_gap suggestions have something to flag regardless of fixtures.
-  const faqsModuleId = moduleIdBySlug.get("faqs");
-  if (faqsModuleId) {
-    await prisma.entry.upsert({
-      where: {
-        tenantId_moduleId_externalId: {
-          tenantId: tenant.id,
-          moduleId: faqsModuleId,
-          externalId: "refund-policy",
-        },
-      },
-      create: {
-        tenantId: tenant.id,
-        moduleId: faqsModuleId,
-        externalId: "refund-policy",
-        createdBy: editor.id,
-        status: "active",
-        data: {
-          question_en: "What's your refund policy?",
-          answer_en: "Full refunds within 14 days with receipt.",
-        },
-      },
-      update: {},
-    });
-  }
-
   await issueApiKey(tenant.id, "future-kid");
-  console.log(`Seeded future-kid: ${MODULES.length} modules, ${entryCount} entries (+1 gap-scan sentinel)`);
-}
-
-async function seedTestCo() {
-  const tenant = await prisma.tenant.upsert({
-    where: { slug: "test-co" },
-    create: { slug: "test-co", name: "Test Co", timezone: "Asia/Kuwait" },
-    update: {},
-  });
-  const { editor } = await upsertTenantUsers(tenant.id);
-
-  const branchFields: FieldDefinition[] = [
-    { key: "name", label: "Name", type: "text", required: true, localized: true },
-    { key: "governorate", label: "Governorate", type: "select", required: true, localized: false,
-      options: ["Hawalli", "Jahra", "Ahmadi", "Farwaniya", "Al-Asimah"] },
-    { key: "status", label: "Status", type: "select", required: true, localized: false,
-      options: ["Active", "CLOSED", "Temp Closed"] },
-    { key: "google_maps_url", label: "Maps", type: "url", required: false, localized: false },
-    { key: "hours_regular", label: "Hours (regular)", type: "textarea", required: true, localized: false },
-  ];
-  const faqFields: FieldDefinition[] = [
-    { key: "question", label: "Question", type: "text", required: true, localized: true },
-    { key: "answer", label: "Answer", type: "textarea", required: true, localized: true },
-  ];
-
-  const [branches, faqs] = await Promise.all([
-    prisma.module.upsert({
-      where: { tenantId_slug: { tenantId: tenant.id, slug: "branches" } },
-      create: { tenantId: tenant.id, slug: "branches", label: "Branches", icon: "map-pin", fieldDefinitions: branchFields as object },
-      update: { fieldDefinitions: branchFields as object },
-    }),
-    prisma.module.upsert({
-      where: { tenantId_slug: { tenantId: tenant.id, slug: "faqs" } },
-      create: { tenantId: tenant.id, slug: "faqs", label: "FAQs", icon: "help-circle", fieldDefinitions: faqFields as object },
-      update: { fieldDefinitions: faqFields as object },
-    }),
-  ]);
-
-  await prisma.entry.upsert({
-    where: { tenantId_moduleId_externalId: { tenantId: tenant.id, moduleId: branches.id, externalId: "salmiya" } },
-    create: {
-      tenantId: tenant.id,
-      moduleId: branches.id,
-      externalId: "salmiya",
-      createdBy: editor.id,
-      status: "active",
-      data: {
-        name_en: "Souq Salmiya Mall",
-        name_ar: "سوق السالمية",
-        governorate: "Hawalli",
-        status: "Active",
-        google_maps_url: "https://maps.app.goo.gl/fJpx5oYZNaFG5Ege7",
-        hours_regular: "Daily: 10AM-12AM",
-      },
-    },
-    update: {},
-  });
-
-  // Gap-scan sentinel for test-co as well: intentionally missing Arabic.
-  await prisma.entry.upsert({
-    where: { tenantId_moduleId_externalId: { tenantId: tenant.id, moduleId: faqs.id, externalId: "refund-policy" } },
-    create: {
-      tenantId: tenant.id,
-      moduleId: faqs.id,
-      externalId: "refund-policy",
-      createdBy: editor.id,
-      status: "active",
-      data: {
-        question_en: "What's your refund policy?",
-        answer_en: "Full refunds within 14 days with receipt.",
-      },
-    },
-    update: {},
-  });
-
-  await issueApiKey(tenant.id, "test-co");
+  console.log(`Seeded future-kid: ${MODULES.length} modules, ${entryCount} entries`);
 }
 
 async function main() {
   await seedFutureKid();
-  await seedTestCo();
   console.log("Seed complete.");
 }
 
