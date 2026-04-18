@@ -45,8 +45,12 @@ export function Login() {
     <div className="min-h-screen min-h-[100svh] flex items-center justify-center bg-surface-secondary px-4 sm:px-6 py-8 sm:py-12">
       <div className="w-full max-w-[420px] animate-scale-in">
         <div className="text-center mb-6">
-          <h1 className="text-[24px] sm:text-[28px] font-semibold tracking-[-0.02em] text-apple-text">The Brain</h1>
-          <p className="text-[14px] text-apple-secondary mt-1">AI-native knowledge hub for your business</p>
+          <h1 className="text-[24px] sm:text-[28px] font-semibold tracking-[-0.02em] text-apple-text">
+            The Brain
+          </h1>
+          <p className="text-[14px] text-apple-secondary mt-1">
+            AI-native knowledge hub for your business
+          </p>
         </div>
 
         <div className="card p-6 space-y-5">
@@ -76,6 +80,7 @@ export function Login() {
                 value={tenantSlug}
                 onChange={(e) => setTenantSlug(e.target.value)}
                 autoComplete="organization"
+                placeholder="your-company"
               />
             </div>
             <div>
@@ -86,6 +91,7 @@ export function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
+                placeholder="you@company.com"
               />
             </div>
             <div>
@@ -96,10 +102,13 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                placeholder="Enter your password"
               />
             </div>
             {err && (
-              <p className="text-[13px] text-apple-red bg-apple-red/10 rounded-apple px-3 py-2">{err}</p>
+              <p className="text-[13px] text-apple-red bg-apple-red/10 rounded-apple px-3 py-2">
+                {err}
+              </p>
             )}
             <button disabled={busy} className="btn-secondary w-full">
               {busy ? "Signing in…" : "Sign in"}
@@ -108,7 +117,8 @@ export function Login() {
         </div>
 
         <p className="text-center text-[11px] text-apple-tertiary mt-5">
-          Powered by <span className="text-pair font-medium">Pair</span> · © {new Date().getFullYear()}
+          Powered by <span className="text-pair font-medium">Pair</span> · ©{" "}
+          {new Date().getFullYear()}
         </p>
       </div>
     </div>

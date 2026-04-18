@@ -47,3 +47,30 @@ Once a report is verified, we:
 2. Open a private branch and start the fix.
 3. Coordinate disclosure: we do not publish details until a fix is deployed.
 4. Credit the reporter in release notes unless they prefer anonymity.
+
+## Secret rotation schedule
+
+Every secret has a maximum age. We rotate on this cadence in normal operation, and immediately on incident (see `docs/runbooks/auth-incident.md`).
+
+| Secret                                                        | Rotation                    | Trigger for off-cycle rotation                              |
+| ------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------- |
+| `JWT_ACCESS_SECRET`                                           | 90 days                     | suspected token leak, former employee offboarding           |
+| `JWT_REFRESH_SECRET`                                          | 180 days                    | suspected session-store compromise                          |
+| `JWT_KID`                                                     | on each JWT secret rotation | paired with the secret                                      |
+| Tenant API keys (`tb_live_*`)                                 | on customer request         | customer reports leak, or staff with access departs         |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`                         | 180 days                    | key ever copied to a shared channel, provider breach notice |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`                   | 180 days                    | access log shows unexpected IP                              |
+| `WHATSAPP_TOKEN`                                              | per Meta app token TTL      | Meta revocation, staff change                               |
+| `SMTP_URL` (with creds)                                       | 180 days                    | mail provider breach                                        |
+| Database credentials (`DATABASE_URL`, `DATABASE_MIGRATE_URL`) | 180 days, separately        | suspected RLS bypass, migrate role compromise               |
+
+Rotation procedure for every secret is the same in outline:
+
+1. Mint the new value in the provider (Anthropic, R2, Neon, SMTP, etc.).
+2. Publish the new value to Vercel env (and the Docker/long-running host if cron runs there), with the old value still present under a `_PREVIOUS` suffix where the code supports dual-read.
+3. Deploy. Verify the service is still healthy against the new value.
+4. Remove the old value from every environment.
+5. Revoke the old value at the provider.
+6. Record the rotation in the ops log with date, operator, and reason.
+
+JWT secrets additionally require bumping `JWT_KID` so refresh tokens signed with the old key can be recognised and rejected cleanly by the verifier.
