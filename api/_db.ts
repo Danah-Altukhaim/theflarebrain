@@ -1,4 +1,4 @@
-const { PrismaClient, Prisma } = require("@prisma/client");
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: any };
 export const prisma = globalForPrisma.prisma ?? new PrismaClient();
