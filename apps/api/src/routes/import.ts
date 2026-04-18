@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
 import * as XLSX from "xlsx";
-import { z } from "zod";
 import type { FieldDefinition } from "@brain/shared";
 import { buildEntryDataSchema } from "@brain/shared";
 import { createEntry } from "../services/entries.js";

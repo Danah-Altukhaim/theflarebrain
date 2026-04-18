@@ -2,7 +2,7 @@ import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { prisma } from "../lib/prisma.js";
 import { adminBypassTotal } from "../lib/metrics.js";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 declare module "fastify" {
   interface FastifyRequest {

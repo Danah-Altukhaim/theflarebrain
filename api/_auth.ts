@@ -1,5 +1,4 @@
 import { createHmac } from "crypto";
-import { prisma } from "./_db";
 
 const JWT_SECRET = process.env.JWT_ACCESS_SECRET ?? "";
 
@@ -24,7 +23,9 @@ export function signJwt(payload: Omit<JwtPayload, "exp">): string {
 export function verifyJwt(token: string): JwtPayload | null {
   try {
     const [header, body, sig] = token.split(".");
-    const expected = createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest("base64url");
+    const expected = createHmac("sha256", JWT_SECRET)
+      .update(`${header}.${body}`)
+      .digest("base64url");
     if (sig !== expected) return null;
     const payload = JSON.parse(Buffer.from(body, "base64url").toString()) as JwtPayload;
     if (payload.exp < Date.now() / 1000) return null;
@@ -34,7 +35,9 @@ export function verifyJwt(token: string): JwtPayload | null {
   }
 }
 
-export async function authenticate(authHeader?: string): Promise<{ userId: string; tenantId: string; role: string; isAdmin: boolean } | null> {
+export async function authenticate(
+  authHeader?: string,
+): Promise<{ userId: string; tenantId: string; role: string; isAdmin: boolean } | null> {
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7);
   const payload = verifyJwt(token);

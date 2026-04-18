@@ -20,6 +20,7 @@ export async function sendEmail(args: {
     console.log(`[email:stub] to=${args.to} subject=${args.subject}`);
     return;
   }
+
   await transporter.sendMail({
     from: process.env.SMTP_FROM ?? "brain@pairai.com",
     to: args.to,

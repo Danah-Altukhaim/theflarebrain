@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../state/auth.js";
-import { useModules } from "../state/modules.js";
+import { useModules, type Module } from "../state/modules.js";
 import { Walkthrough } from "./Walkthrough.js";
 import { Icon } from "./Icon.js";
 import { CommandPalette } from "./CommandPalette.js";
@@ -38,11 +38,13 @@ function initials(name?: string | null): string {
 }
 
 const HIDDEN_SLUGS = new Set([
-  "announcements", "14-announcements", "booking-flows",
-  "response_templates", "response-templates",
+  "announcements",
+  "14-announcements",
+  "booking-flows",
+  "response_templates",
+  "response-templates",
 ]);
-const HIDDEN_LABEL_RE =
-  /active\s*alerts|announcements|booking\s*flows|response\s*templates/i;
+const HIDDEN_LABEL_RE = /active\s*alerts|announcements|booking\s*flows|response\s*templates/i;
 
 export function Layout() {
   const { modules: allModules, fetchModules } = useModules();
@@ -106,7 +108,9 @@ export function Layout() {
   const sidebarContent = (showLabels: boolean) => (
     <>
       {/* Brand */}
-      <div className={`flex items-center ${showLabels ? "px-5 gap-3" : "px-3 justify-center"} py-4`}>
+      <div
+        className={`flex items-center ${showLabels ? "px-5 gap-3" : "px-3 justify-center"} py-4`}
+      >
         {!showLabels && !isMobile ? (
           <button
             type="button"
@@ -120,8 +124,12 @@ export function Layout() {
         ) : (
           <>
             <div className="leading-tight min-w-0 flex-1">
-              <div className="text-[15px] font-semibold tracking-tight text-apple-text truncate">The Brain</div>
-              <div className="text-[11px] text-apple-secondary truncate max-w-[160px]">{tenant?.name ?? "-"}</div>
+              <div className="text-[15px] font-semibold tracking-tight text-apple-text truncate">
+                The Brain
+              </div>
+              <div className="text-[11px] text-apple-secondary truncate max-w-[160px]">
+                {tenant?.name ?? "-"}
+              </div>
             </div>
             {!isMobile && (
               <button
@@ -163,17 +171,28 @@ export function Layout() {
 
       {/* User chip */}
       <div className="border-t border-apple-separator-light p-3">
-        <div className={`flex items-center ${!showLabels ? "flex-col gap-2" : "gap-2.5 px-2 py-1.5"}`}>
+        <div
+          className={`flex items-center ${!showLabels ? "flex-col gap-2" : "gap-2.5 px-2 py-1.5"}`}
+        >
           <div className="w-8 h-8 rounded-full bg-pair-light text-pair flex items-center justify-center text-[12px] font-semibold shrink-0">
             {initials(user?.name)}
           </div>
           {showLabels && (
             <div className="flex-1 min-w-0 leading-tight">
-              <div className="text-[13px] font-medium text-apple-text truncate">{user?.name ?? "-"}</div>
-              <div className="text-[11px] text-apple-secondary truncate">{user?.role?.replace(/_/g, " ").toLowerCase()}</div>
+              <div className="text-[13px] font-medium text-apple-text truncate">
+                {user?.name ?? "-"}
+              </div>
+              <div className="text-[11px] text-apple-secondary truncate">
+                {user?.role?.replace(/_/g, " ").toLowerCase()}
+              </div>
             </div>
           )}
-          <button onClick={signOut} aria-label="Sign out" className="btn-ghost !px-2 !py-1.5" title="Sign out">
+          <button
+            onClick={signOut}
+            aria-label="Sign out"
+            className="btn-ghost !px-2 !py-1.5"
+            title="Sign out"
+          >
             <Icon name="log-out" size={15} />
           </button>
         </div>
@@ -184,7 +203,9 @@ export function Layout() {
   return (
     <div
       className={`min-h-screen w-full max-w-full bg-[#FBFBFD] ${isMobile ? "" : "grid transition-[grid-template-columns] duration-200 ease-out"}`}
-      style={isMobile ? undefined : { gridTemplateColumns: `${collapsed ? 72 : 260}px minmax(0, 1fr)` }}
+      style={
+        isMobile ? undefined : { gridTemplateColumns: `${collapsed ? 72 : 260}px minmax(0, 1fr)` }
+      }
     >
       {/* ── Desktop sidebar ── */}
       {!isMobile && (
@@ -224,12 +245,17 @@ export function Layout() {
           )}
 
           {location.pathname.startsWith("/modules/") ? (
-            <Link to="/" className="inline-flex items-center gap-1.5 text-apple-secondary hover:text-apple-text transition-colors">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-apple-secondary hover:text-apple-text transition-colors"
+            >
               <Icon name="arrow-left" size={16} />
               <span className="text-[13px] font-medium">Knowledge</span>
             </Link>
           ) : (
-            <h1 className="text-[17px] font-semibold tracking-tight text-apple-text truncate">{title}</h1>
+            <h1 className="text-[17px] font-semibold tracking-tight text-apple-text truncate">
+              {title}
+            </h1>
           )}
           <div className="flex-1" />
 
@@ -266,18 +292,21 @@ export function Layout() {
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
           <div className="p-4 sm:p-6 lg:p-8 animate-fade-in min-w-0">
-            <Suspense fallback={<div className="space-y-4"><div className="h-32 bg-surface-tertiary/40 rounded-apple-lg animate-pulse" /><div className="h-48 bg-surface-tertiary/30 rounded-apple-lg animate-pulse" /></div>}>
+            <Suspense
+              fallback={
+                <div className="space-y-4">
+                  <div className="h-32 bg-surface-tertiary/40 rounded-apple-lg animate-pulse" />
+                  <div className="h-48 bg-surface-tertiary/30 rounded-apple-lg animate-pulse" />
+                </div>
+              }
+            >
               <Outlet context={{ title }} />
             </Suspense>
           </div>
         </div>
       </main>
       <Walkthrough />
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        modules={modules}
-      />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} modules={modules} />
     </div>
   );
 }

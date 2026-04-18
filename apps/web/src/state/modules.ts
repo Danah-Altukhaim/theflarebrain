@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { api } from "../lib/api";
 
-type Module = {
+export type Module = {
   id: string;
   slug: string;
   label: string;
