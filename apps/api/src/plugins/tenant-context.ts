@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { prisma } from "../lib/prisma.js";
+import { adminBypassTotal } from "../lib/metrics.js";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
 declare module "fastify" {
@@ -8,9 +9,7 @@ declare module "fastify" {
     tenantId?: string;
     isAdmin?: boolean;
     /** Runs `fn` inside a transaction with `SET LOCAL app.tenant_id` so RLS policies fire. */
-    withTenant: <T>(
-      fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    ) => Promise<T>;
+    withTenant: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => Promise<T>;
   }
 }
 
@@ -31,6 +30,7 @@ const plugin: FastifyPluginAsync = async (app) => {
       }
       return prisma.$transaction(async (tx) => {
         if (req.isAdmin) {
+          adminBypassTotal.labels("tenant-context").inc();
           await tx.$executeRawUnsafe(`SET LOCAL app.is_admin = 'true'`);
         }
         if (req.tenantId) {

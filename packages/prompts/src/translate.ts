@@ -1,4 +1,9 @@
-import { getClaude, extractMetrics, type ClaudeCallMetrics } from "./claude-client.js";
+import {
+  getClaude,
+  extractMetrics,
+  recordClaudeCall,
+  type ClaudeCallMetrics,
+} from "./claude-client.js";
 import { MODELS } from "./models.js";
 
 export type TranslateResult = {
@@ -15,29 +20,35 @@ export async function translateField(args: {
   fieldLabel: string;
 }): Promise<TranslateResult> {
   const startedAt = Date.now();
-  const resp = await getClaude().messages.create({
-    model: MODELS.translate,
-    max_tokens: 512,
-    system: [
-      {
-        type: "text",
-        text:
-          "You translate Future Kid marketing copy between English and Arabic. Preserve brand voice: warm, concise, family-friendly. Use the approved glossary. Return ONLY the translation and a confidence score 0.0-1.0 as JSON: {\"text\":\"...\",\"confidence\":0.0}.",
-        cache_control: { type: "ephemeral" },
-      },
-      {
-        type: "text",
-        text: "GLOSSARY: Future Kid=فيوتشر كيد, branch=فرع, promotion=عرض, ride=لعبة, bank card=بطاقة بنكية",
-        cache_control: { type: "ephemeral" },
-      },
-    ] as any,
-    messages: [
-      {
-        role: "user",
-        content: `Field: ${args.fieldLabel}\nFrom: ${args.from} → To: ${args.to}\nText: ${args.text}`,
-      },
-    ],
-  });
+  let resp;
+  try {
+    resp = await getClaude().messages.create({
+      model: MODELS.translate,
+      max_tokens: 512,
+      system: [
+        {
+          type: "text",
+          text: 'You translate Future Kid marketing copy between English and Arabic. Preserve brand voice: warm, concise, family-friendly. Use the approved glossary. Return ONLY the translation and a confidence score 0.0-1.0 as JSON: {"text":"...","confidence":0.0}.',
+          cache_control: { type: "ephemeral" },
+        },
+        {
+          type: "text",
+          text: "GLOSSARY: Future Kid=فيوتشر كيد, branch=فرع, promotion=عرض, ride=لعبة, bank card=بطاقة بنكية",
+          cache_control: { type: "ephemeral" },
+        },
+      ] as any,
+      messages: [
+        {
+          role: "user",
+          content: `Field: ${args.fieldLabel}\nFrom: ${args.from} → To: ${args.to}\nText: ${args.text}`,
+        },
+      ],
+    });
+  } catch (err) {
+    recordClaudeCall(MODELS.translate, startedAt, "error");
+    throw err;
+  }
+  recordClaudeCall(MODELS.translate, startedAt, "success");
   const metrics = extractMetrics(resp, MODELS.translate, startedAt);
   const block = resp.content.find((b) => b.type === "text");
   const raw = block?.type === "text" ? block.text : "";

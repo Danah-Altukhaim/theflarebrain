@@ -1,11 +1,22 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
 import { nanoid } from "nanoid";
 import { env } from "./lib/env.js";
 import { prisma } from "./lib/prisma.js";
 import { redis } from "./lib/redis.js";
+import { setClaudeObserver } from "@brain/prompts";
+import { initSentry, Sentry } from "./lib/sentry.js";
+import {
+  registry as metricsRegistry,
+  httpRequestDurationMs,
+  llmCallTotal,
+  llmCallDurationMs,
+} from "./lib/metrics.js";
 import tenantContext from "./plugins/tenant-context.js";
 import auth from "./plugins/auth.js";
 import apiKey from "./plugins/api-key.js";
@@ -24,6 +35,11 @@ import meRoutes from "./routes/me.js";
 import translateRoutes from "./routes/translate.js";
 
 export async function buildApp() {
+  initSentry(env.SENTRY_DSN, env.NODE_ENV);
+  setClaudeObserver(({ model, latencyMs, status }) => {
+    llmCallTotal.labels("anthropic", model, status).inc();
+    llmCallDurationMs.labels("anthropic", model).observe(latencyMs);
+  });
   const app = Fastify({
     logger: { level: env.LOG_LEVEL },
     genReqId: () => nanoid(12),
@@ -35,9 +51,22 @@ export async function buildApp() {
 
   app.addHook("onRequest", async (req, reply) => {
     reply.header("x-request-id", req.id);
+    (req as unknown as { _startHr?: bigint })._startHr = process.hrtime.bigint();
   });
 
-  const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
+  app.addHook("onResponse", async (req, reply) => {
+    const start = (req as unknown as { _startHr?: bigint })._startHr;
+    if (!start) return;
+    const elapsed = Number(process.hrtime.bigint() - start) / 1_000_000;
+    const route = req.routeOptions?.url ?? "unmatched";
+    const status = reply.statusCode;
+    const statusClass = `${Math.floor(status / 100)}xx`;
+    httpRequestDurationMs.labels(req.method, route, statusClass).observe(elapsed);
+  });
+
+  const allowedOrigins = env.CORS_ORIGIN.split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {
@@ -57,6 +86,15 @@ export async function buildApp() {
     crossOriginResourcePolicy: { policy: "same-site" },
   });
   await app.register(cors, { origin: allowedOrigins, credentials: true });
+  // Global multipart ceiling. Routes enforce tighter per-file limits (voice 25MB, media/import 10MB).
+  await app.register(multipart, {
+    limits: {
+      fileSize: 50 * 1024 * 1024,
+      files: 1,
+      fieldSize: 1 * 1024 * 1024,
+      fields: 20,
+    },
+  });
   await app.register(rateLimit, {
     max: 200,
     timeWindow: "1 minute",
@@ -67,19 +105,62 @@ export async function buildApp() {
   await app.register(auth);
   await app.register(apiKey);
 
+  // API documentation: available in dev and staging; disabled in production.
+  if (env.NODE_ENV !== "production") {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: "The Brain API",
+          description: "Multi-tenant knowledge hub API.",
+          version: "0.0.1",
+        },
+        servers: [{ url: `http://localhost:${env.PORT}` }],
+        components: {
+          securitySchemes: {
+            bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+            apiKey: { type: "http", scheme: "bearer", bearerFormat: "tb_live_..." },
+          },
+        },
+      },
+    });
+    await app.register(swaggerUi, {
+      routePrefix: "/docs",
+      uiConfig: { docExpansion: "list", deepLinking: true },
+    });
+  }
+
+  // Metrics endpoint. Gated by the api-key plugin (require `read:metrics` scope).
+  app.get("/metrics", { onRequest: [app.apiKeyAuth] }, async (req, reply) => {
+    if (!req.apiKeyScopes?.includes("read:metrics")) {
+      reply.code(403);
+      return { success: false, error: { code: "FORBIDDEN", status: 403 } };
+    }
+    reply.header("content-type", metricsRegistry.contentType);
+    return metricsRegistry.metrics();
+  });
+
   app.get("/health", async () => {
     let db = false;
     let redisOk = false;
     try {
       await prisma.$queryRaw`SELECT 1`;
       db = true;
-    } catch { /* db unreachable */ }
+    } catch {
+      /* db unreachable */
+    }
     try {
       redisOk = (await redis.ping()) === "PONG";
-    } catch { /* redis unreachable */ }
+    } catch {
+      /* redis unreachable */
+    }
     return {
       success: true,
-      data: { status: db && redisOk ? "ok" : "degraded", db, redis: redisOk, timestamp: new Date().toISOString() },
+      data: {
+        status: db && redisOk ? "ok" : "degraded",
+        db,
+        redis: redisOk,
+        timestamp: new Date().toISOString(),
+      },
     };
   });
 
@@ -113,6 +194,12 @@ async function main() {
     await app.close();
     await prisma.$disconnect();
     await redis.quit();
+    // Flush Sentry before exit so the last batch of errors isn't dropped.
+    try {
+      await Sentry.close(2_000);
+    } catch {
+      /* best-effort */
+    }
     process.exit(0);
   }
 

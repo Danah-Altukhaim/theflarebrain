@@ -1,7 +1,13 @@
 import nodemailer from "nodemailer";
 
+// Email sends are NOT idempotent — do not retry automatically or the recipient
+// may get duplicate messages. Timeouts are set low enough to fail fast.
 const transporter = process.env.SMTP_URL
-  ? nodemailer.createTransport(process.env.SMTP_URL)
+  ? nodemailer.createTransport(process.env.SMTP_URL, {
+      connectionTimeout: 10_000,
+      greetingTimeout: 5_000,
+      socketTimeout: 20_000,
+    })
   : null;
 
 export async function sendEmail(args: {
@@ -11,7 +17,6 @@ export async function sendEmail(args: {
   attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
 }) {
   if (!transporter) {
-    // eslint-disable-next-line no-console
     console.log(`[email:stub] to=${args.to} subject=${args.subject}`);
     return;
   }

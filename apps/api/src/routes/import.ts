@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from "fastify";
-import multipart from "@fastify/multipart";
 import * as XLSX from "xlsx";
 import { z } from "zod";
 import type { FieldDefinition } from "@brain/shared";
@@ -8,13 +7,13 @@ import { createEntry } from "../services/entries.js";
 import { notFound, badRequest } from "../lib/errors.js";
 
 const routes: FastifyPluginAsync = async (app) => {
-  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
   app.addHook("onRequest", app.authenticate);
 
   app.post("/preview", async (req) => {
     const file = await req.file();
     if (!file) throw badRequest("No file");
     const buf = await file.toBuffer();
+    if (buf.byteLength > 10 * 1024 * 1024) throw badRequest("Import file >10MB");
     const wb = XLSX.read(buf, { type: "buffer" });
     const sheet = wb.Sheets[wb.SheetNames[0]!]!;
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
@@ -39,6 +38,7 @@ const routes: FastifyPluginAsync = async (app) => {
     const file = await req.file();
     if (!file) throw badRequest("No file");
     const buf = await file.toBuffer();
+    if (buf.byteLength > 10 * 1024 * 1024) throw badRequest("Import file >10MB");
     const wb = XLSX.read(buf, { type: "buffer" });
     const sheet = wb.Sheets[wb.SheetNames[0]!]!;
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);

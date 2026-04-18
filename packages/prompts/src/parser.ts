@@ -1,6 +1,11 @@
 import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
-import { getClaude, extractMetrics, type ClaudeCallMetrics } from "./claude-client.js";
+import {
+  getClaude,
+  extractMetrics,
+  recordClaudeCall,
+  type ClaudeCallMetrics,
+} from "./claude-client.js";
 import { MODELS } from "./models.js";
 import type { FieldDefinition } from "@brain/shared";
 
@@ -184,8 +189,7 @@ export async function parseUtterance(input: ParserInput): Promise<ParserResult> 
   const systemBlocks = [
     {
       type: "text",
-      text:
-        "You are The Brain, PAIR AI's knowledge-base editor. Convert the user's natural-language or transcribed-voice message into exactly ONE tool call. Never guess module names: use only the provided schemas. If the user asks a question, use emit_query. For bilingual fields, fill whichever language the user gave and leave the other empty; downstream translation will handle it. Prefer the latest matching entry for context references like 'that one' or 'the last promo'.",
+      text: "You are The Brain, PAIR AI's knowledge-base editor. Convert the user's natural-language or transcribed-voice message into exactly ONE tool call. Never guess module names: use only the provided schemas. If the user asks a question, use emit_query. For bilingual fields, fill whichever language the user gave and leave the other empty; downstream translation will handle it. Prefer the latest matching entry for context references like 'that one' or 'the last promo'.",
       cache_control: { type: "ephemeral" },
     },
     {
@@ -195,8 +199,7 @@ export async function parseUtterance(input: ParserInput): Promise<ParserResult> 
     },
     {
       type: "text",
-      text:
-        "BRAND GLOSSARY (EN→AR): Future Kid → فيوتشر كيد; branch → فرع; promotion → عرض; ride → لعبة; bank card → بطاقة بنكية. TONE: warm, concise, family-friendly. Kuwait market context.",
+      text: "BRAND GLOSSARY (EN→AR): Future Kid → فيوتشر كيد; branch → فرع; promotion → عرض; ride → لعبة; bank card → بطاقة بنكية. TONE: warm, concise, family-friendly. Kuwait market context.",
       cache_control: { type: "ephemeral" },
     },
   ] as unknown as Anthropic.Messages.TextBlockParam[];
@@ -230,11 +233,15 @@ export async function parseUtterance(input: ParserInput): Promise<ParserResult> 
       messages,
     });
   } catch (err) {
+    recordClaudeCall(MODELS.parser, startedAt, "error");
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
+  recordClaudeCall(MODELS.parser, startedAt, "success");
 
   const metrics = extractMetrics(resp, MODELS.parser, startedAt);
-  const toolUse = resp.content.find((b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use");
+  const toolUse = resp.content.find(
+    (b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use",
+  );
   if (!toolUse) {
     return { ok: false, error: "No tool call emitted", metrics };
   }
