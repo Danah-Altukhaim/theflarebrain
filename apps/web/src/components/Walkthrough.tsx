@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../lib/api.js";
+import { useAuth } from "../state/auth.js";
 import { Icon } from "./Icon.js";
 
 const STEPS = [
@@ -10,21 +11,22 @@ const STEPS = [
 ];
 
 export function Walkthrough() {
-  const [done, setDone] = useState<boolean | null>(null);
+  const walkthroughCompleted = useAuth((s) => s.user?.walkthroughCompleted ?? true);
   const [step, setStep] = useState(0);
 
-  useEffect(() => {
-    api<{ walkthroughCompleted: boolean }>("/api/v1/me")
-      .then((u) => setDone(u.walkthroughCompleted))
-      .catch(() => setDone(true));
-  }, []);
-
-  if (done === null || done) return null;
+  if (walkthroughCompleted) return null;
 
   const s = STEPS[step]!;
   async function finish() {
-    await api("/api/v1/me/walkthrough-complete", { method: "POST" });
-    setDone(true);
+    await api("/api/v1/me/walkthrough-complete", { method: "POST" }).catch(() => {});
+    const current = useAuth.getState().user;
+    if (current) {
+      useAuth.getState().setAuth({
+        token: useAuth.getState().token!,
+        user: { ...current, walkthroughCompleted: true },
+        tenant: useAuth.getState().tenant,
+      });
+    }
   }
 
   return (

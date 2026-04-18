@@ -17,5 +17,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }, auth.isAdmin);
 
+  res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
   return res.json({ success: true, data: modules });
 }

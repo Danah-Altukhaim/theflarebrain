@@ -1,12 +1,10 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "../lib/api.js";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../state/auth.js";
+import { useModules } from "../state/modules.js";
 import { Walkthrough } from "./Walkthrough.js";
 import { Icon } from "./Icon.js";
 import { CommandPalette } from "./CommandPalette.js";
-
-type Module = { id: string; slug: string; label: string; icon?: string };
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(
@@ -39,8 +37,15 @@ function initials(name?: string | null): string {
   return name.charAt(0).toUpperCase();
 }
 
+const HIDDEN_SLUGS = new Set([
+  "announcements", "14-announcements", "booking-flows",
+  "response_templates", "response-templates",
+]);
+const HIDDEN_LABEL_RE =
+  /active\s*alerts|announcements|booking\s*flows|response\s*templates/i;
+
 export function Layout() {
-  const [modules, setModules] = useState<Module[]>([]);
+  const { modules: allModules, fetchModules } = useModules();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("sidebarCollapsed") === "1";
@@ -77,22 +82,13 @@ export function Layout() {
   }, [collapsed]);
 
   useEffect(() => {
-    api<Module[]>("/api/v1/modules")
-      .then((mods) =>
-        setModules(
-          mods.filter(
-            (m) =>
-              m.slug !== "announcements" &&
-              m.slug !== "14-announcements" &&
-              m.slug !== "booking-flows" &&
-              m.slug !== "response_templates" &&
-              m.slug !== "response-templates" &&
-              !/active\s*alerts|announcements|booking\s*flows|response\s*templates/i.test(m.label),
-          ),
-        ),
-      )
-      .catch(() => setModules([]));
-  }, []);
+    fetchModules();
+  }, [fetchModules]);
+
+  const modules = useMemo(
+    () => allModules.filter((m) => !HIDDEN_SLUGS.has(m.slug) && !HIDDEN_LABEL_RE.test(m.label)),
+    [allModules],
+  );
 
   const title = useMemo(() => routeTitle(location.pathname, modules), [location.pathname, modules]);
 
@@ -270,7 +266,9 @@ export function Layout() {
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
           <div className="p-4 sm:p-6 lg:p-8 animate-fade-in min-w-0">
-            <Outlet context={{ title }} />
+            <Suspense fallback={<div className="space-y-4"><div className="h-32 bg-surface-tertiary/40 rounded-apple-lg animate-pulse" /><div className="h-48 bg-surface-tertiary/30 rounded-apple-lg animate-pulse" /></div>}>
+              <Outlet context={{ title }} />
+            </Suspense>
           </div>
         </div>
       </main>

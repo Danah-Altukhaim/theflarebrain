@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../lib/api.js";
 import { filterVisibleModules } from "../lib/modules.js";
 import { Icon } from "../components/Icon.js";
 import { useAuth } from "../state/auth.js";
-
-type Module = { id: string; slug: string; label: string; icon?: string };
+import { useModules } from "../state/modules.js";
 
 const MODULE_ICON: Record<string, string> = {
   branches: "marker",
@@ -41,45 +39,26 @@ function colorFor(slug: string) {
 }
 
 export function Knowledge() {
-  const [modules, setModules] = useState<Module[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const { modules: allModules, loading, fetchModules } = useModules();
   const user = useAuth((s) => s.user);
 
   useEffect(() => {
-    api<Module[]>("/api/v1/modules")
-      .then((mods) => {
-        const filtered = filterVisibleModules(mods);
-        setModules(filtered);
-        setLoading(false);
+    fetchModules();
+  }, [fetchModules]);
 
-        for (const mod of filtered) {
-          api<{ id: string }[]>(`/api/v1/entries/${mod.slug}`)
-            .then((entries) => {
-              setCounts((prev) => ({ ...prev, [mod.slug]: entries.length }));
-            })
-            .catch(() => {});
-        }
-      })
-      .catch(() => {
-        setModules([]);
-        setLoading(false);
-      });
-  }, []);
+  const modules = useMemo(() => filterVisibleModules(allModules), [allModules]);
 
   const totalEntries = useMemo(
-    () => Object.values(counts).reduce((sum, n) => sum + n, 0),
-    [counts],
+    () => modules.reduce((sum, m) => sum + m.entryCount, 0),
+    [modules],
   );
-
-  const loadedAll = Object.keys(counts).length === modules.length && modules.length > 0;
 
   return (
     <div className="space-y-6">
       {/* Hero greeting */}
       <div
         className="relative overflow-hidden rounded-apple-lg border border-[#e0e6f0] px-4 py-5 sm:px-7 sm:py-6 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/hero-bg.png')" }}
+        style={{ backgroundImage: "url('/hero-bg.webp')" }}
       >
         <div className="relative z-10">
           <h1 className="text-[22px] sm:text-[26px] font-semibold tracking-[-0.02em] text-apple-text">
@@ -91,7 +70,7 @@ export function Knowledge() {
         </div>
 
         {/* Stats row */}
-        {loadedAll && (
+        {modules.length > 0 && (
           <div className="relative z-10 flex items-center gap-2 sm:gap-3 mt-4 sm:mt-5">
             <div className="rounded-apple-lg bg-white/80 backdrop-blur-md px-4 py-2.5 sm:px-5 sm:py-3 border border-white/90 shadow-apple-sm hover:shadow-apple transition-shadow cursor-default">
               <div className="text-[18px] sm:text-[20px] font-bold text-apple-text leading-tight">{modules.length}</div>
@@ -128,7 +107,6 @@ export function Knowledge() {
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
           {modules.map((m) => {
-            const count = counts[m.slug];
             return (
               <Link
                 key={m.slug}
@@ -140,11 +118,7 @@ export function Knowledge() {
                     {m.label}
                   </div>
                   <div className="text-[12px] text-apple-secondary mt-0.5">
-                    {count !== undefined
-                      ? `${count.toLocaleString()} entr${count === 1 ? "y" : "ies"}`
-                      : (
-                        <span className="inline-block w-16 h-3 bg-surface-tertiary/60 rounded animate-pulse" />
-                      )}
+                    {`${m.entryCount.toLocaleString()} entr${m.entryCount === 1 ? "y" : "ies"}`}
                   </div>
                 </div>
                 <Icon name="chevron-right" size={14} className="text-apple-tertiary group-hover:text-pair transition-colors shrink-0 ml-3" />

@@ -1,15 +1,16 @@
-import React from "react";
+import React, { lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { Login } from "./pages/Login.js";
 import { Layout } from "./components/Layout.js";
 import { Knowledge } from "./pages/Knowledge.js";
-import { BrainChat } from "./pages/BrainChat.js";
-import { ModulePage } from "./pages/ModulePage.js";
-import { Admin } from "./pages/Admin.js";
-import { Activity } from "./pages/Activity.js";
 import { useAuth } from "./state/auth.js";
 import "./index.css";
+
+const BrainChat = lazy(() => import("./pages/BrainChat.js").then((m) => ({ default: m.BrainChat })));
+const ModulePage = lazy(() => import("./pages/ModulePage.js").then((m) => ({ default: m.ModulePage })));
+const Admin = lazy(() => import("./pages/Admin.js").then((m) => ({ default: m.Admin })));
+const Activity = lazy(() => import("./pages/Activity.js").then((m) => ({ default: m.Activity })));
 
 function Guard({ children }: { children: React.ReactNode }) {
   const token = useAuth((s) => s.token);

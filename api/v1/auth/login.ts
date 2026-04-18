@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     success: true,
     data: {
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, walkthroughCompleted: user.walkthroughCompleted },
       tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
     },
   });

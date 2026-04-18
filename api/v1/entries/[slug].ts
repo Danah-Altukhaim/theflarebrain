@@ -20,6 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }, auth.isAdmin);
 
     if (entries === null) return res.status(404).json({ success: false, error: { message: "Module not found" } });
+    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
     return res.json({ success: true, data: entries });
   }
 

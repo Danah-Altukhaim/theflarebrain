@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 type State = {
   token: string | null;
-  user: { id: string; name: string; role: string } | null;
+  user: { id: string; name: string; role: string; walkthroughCompleted?: boolean } | null;
   tenant: { id: string; slug: string; name: string } | null;
   setAuth: (payload: { token: string; user: State["user"]; tenant: State["tenant"] }) => void;
   signOut: () => void;
