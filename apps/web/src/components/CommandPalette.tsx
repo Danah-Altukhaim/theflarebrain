@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { Icon } from "./Icon.js";
@@ -18,6 +12,7 @@ type EntryHit = {
   module_label: string;
   data: Record<string, unknown> | unknown;
   updated_at: string;
+  created_by_name: string | null;
 };
 
 type NavItem = {
@@ -37,7 +32,10 @@ const STATIC_PAGES: Array<{ label: string; to: string; icon: string; keywords: s
 ];
 
 function normalize(s: string): string {
-  return s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  return s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function pickEntryTitle(data: unknown): string {
@@ -80,7 +78,11 @@ function pickEntrySnippet(data: unknown, query: string): string {
     if (idx >= 0) {
       const start = Math.max(0, idx - 30);
       const end = Math.min(text.length, idx + needle.length + 60);
-      return (start > 0 ? "..." : "") + text.slice(start, end).replace(/\s+/g, " ").trim() + (end < text.length ? "..." : "");
+      return (
+        (start > 0 ? "..." : "") +
+        text.slice(start, end).replace(/\s+/g, " ").trim() +
+        (end < text.length ? "..." : "")
+      );
     }
   }
   return values[0]?.slice(0, 120) ?? "";
@@ -187,11 +189,14 @@ export function CommandPalette({
       for (const h of hits) {
         const title = pickEntryTitle(h.data) || `Entry ${h.id.slice(0, 6)}`;
         const snippet = pickEntrySnippet(h.data, query.trim());
+        const parts = [h.module_label];
+        if (h.created_by_name) parts.push(`by ${h.created_by_name}`);
+        if (snippet) parts.push(snippet);
         out.push({
           key: `entry:${h.id}`,
           kind: "entry",
           label: title,
-          sublabel: snippet ? `${h.module_label} , ${snippet}` : h.module_label,
+          sublabel: parts.join(" \u00b7 "),
           to: `/modules/${h.module_slug}?entry=${encodeURIComponent(h.id)}`,
           icon: "document",
         });
@@ -357,7 +362,9 @@ export function CommandPalette({
               open
             </span>
           </div>
-          <span>{items.length} result{items.length === 1 ? "" : "s"}</span>
+          <span>
+            {items.length} result{items.length === 1 ? "" : "s"}
+          </span>
         </div>
       </div>
     </div>

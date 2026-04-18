@@ -25,14 +25,21 @@ const routes: FastifyPluginAsync = async (app) => {
           module_label: string;
           data: unknown;
           updated_at: Date;
+          created_by_name: string | null;
         }>
       >(
         `SELECT e.id, e.module_id, m.slug AS module_slug, m.label AS module_label,
-                e.data, e.updated_at
+                e.data, e.updated_at,
+                u.name AS created_by_name
          FROM entries e
          JOIN modules m ON m.id = e.module_id
+         LEFT JOIN users u ON u.id = e.created_by
          WHERE e.status = 'active'
-           AND regexp_replace(e.data::text, '"[^"]+":', '', 'g') ILIKE $1
+           AND (
+             e.data::text ILIKE $1
+             OR m.label ILIKE $1
+             OR u.name ILIKE $1
+           )
          ORDER BY e.updated_at DESC
          LIMIT $2`,
         pattern,
@@ -175,7 +182,9 @@ const routes: FastifyPluginAsync = async (app) => {
 
   app.patch("/:moduleSlug/:id", async (req) => {
     const { id } = req.params as { moduleSlug: string; id: string };
-    const body = z.object({ data: z.record(z.unknown()), changeSummary: z.string().optional() }).parse(req.body);
+    const body = z
+      .object({ data: z.record(z.unknown()), changeSummary: z.string().optional() })
+      .parse(req.body);
     const userId = (req.user as { sub: string } | undefined)?.sub;
     const updated = await req.withTenant((tx) =>
       updateEntry(tx, {
