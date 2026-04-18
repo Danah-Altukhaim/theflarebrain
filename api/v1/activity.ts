@@ -28,12 +28,10 @@ let cachedEvents: ActivityEvent[] | null = null;
 function buildEvents(): ActivityEvent[] {
   if (cachedEvents) return cachedEvents;
   const events: ActivityEvent[] = [];
-  const moduleBySlug = new Map(MODULES.map((m) => [m.slug, m]));
   let counter = 0;
 
-  for (const [slug, entries] of Object.entries(ENTRIES_BY_SLUG)) {
-    const mod = moduleBySlug.get(slug);
-    if (!mod) continue;
+  for (const mod of MODULES) {
+    const entries = ENTRIES_BY_SLUG[mod.slug as keyof typeof ENTRIES_BY_SLUG] ?? [];
     for (const entry of entries) {
       events.push({
         id: `ver-${counter++}`,
