@@ -18,6 +18,24 @@ const plugin: FastifyPluginAsync = async (app) => {
         error: { code: "VALIDATION", message: err.message, status: 400 },
       });
     }
+    // Fastify plugins (rate-limit, multipart, etc.) throw errors with a
+    // `statusCode` field. Honour it for 4xx so client errors don't masquerade as 500s.
+    const statusCode =
+      typeof (err as { statusCode?: number }).statusCode === "number"
+        ? (err as { statusCode: number }).statusCode
+        : 500;
+
+    if (statusCode >= 400 && statusCode < 500) {
+      return reply.status(statusCode).send({
+        success: false,
+        error: {
+          code: (err as { code?: string }).code ?? "CLIENT_ERROR",
+          message: err.message,
+          status: statusCode,
+        },
+      });
+    }
+
     req.log.error({ err }, "unhandled error");
     captureError(err, {
       requestId: req.id,
@@ -25,9 +43,9 @@ const plugin: FastifyPluginAsync = async (app) => {
       method: req.method,
       tenantId: req.tenantId,
     });
-    return reply.status(500).send({
+    return reply.status(statusCode).send({
       success: false,
-      error: { code: "INTERNAL", message: "Internal server error", status: 500 },
+      error: { code: "INTERNAL", message: "Internal server error", status: statusCode },
     });
   });
 };

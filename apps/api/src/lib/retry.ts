@@ -30,6 +30,7 @@ export function isTransientError(err: unknown): boolean {
     const msg = err.message.toLowerCase();
     if (
       msg.includes("timeout") ||
+      msg.includes("timed out") ||
       msg.includes("econn") ||
       msg.includes("socket hang up") ||
       msg.includes("network") ||

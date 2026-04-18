@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -207,7 +208,12 @@ async function main() {
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only boot the HTTP server when this module is the process entry point.
+// Tests import `buildApp` from this file and must not trigger `app.listen`.
+const isEntry = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isEntry) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
