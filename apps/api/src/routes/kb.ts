@@ -8,7 +8,6 @@ import {
   writeFallback,
   readFallback,
 } from "../services/cache.js";
-import { prisma } from "../lib/prisma.js";
 import { notFound, forbidden } from "../lib/errors.js";
 
 const SearchQuery = z.object({ q: z.string().min(1).max(200) });
@@ -115,14 +114,16 @@ const routes: FastifyPluginAsync = async (app) => {
     if (!req.apiKeyScopes?.includes("write:analytics") && !req.apiKeyScopes?.includes("read:kb")) {
       throw forbidden();
     }
-    await prisma.contentAnalyticsEvent.create({
-      data: {
-        tenantId: req.tenantId!,
-        entryId: event.entry_id,
-        eventType: event.event_type,
-        botConversationId: event.bot_conversation_id,
-      },
-    });
+    await req.withTenant((tx) =>
+      tx.contentAnalyticsEvent.create({
+        data: {
+          tenantId: req.tenantId!,
+          entryId: event.entry_id,
+          eventType: event.event_type,
+          botConversationId: event.bot_conversation_id,
+        },
+      }),
+    );
     return { success: true, data: { recorded: true } };
   });
 };

@@ -10,10 +10,27 @@ All notable changes to The Brain are recorded here. Format follows [Keep a Chang
 - Production-only env validation in `apps/api/src/lib/env.ts` that fails boot if `ANTHROPIC_API_KEY`, `SMTP_URL`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, or `R2_*` are missing when `NODE_ENV=production`. Dev and test keep the silent-stub path.
 - Retry with exponential backoff and jitter for WhatsApp sends (5xx and 429 only, 3 attempts). Network errors and timeouts are not retried because sends are not idempotent.
 - `whatsapp.test.ts` with coverage for retry-success, retry-rate-limit, fatal-client-error, persistent-failure, and stub paths.
+- `entries.test.ts`: 8 integration tests covering CRUD, versioning, and rollback on the FAQ module.
+- `kb.test.ts`: 12 integration tests covering API-key auth, scope gating, per-module reads, health, and analytics events.
+- `admin.test.ts`: 7 integration tests covering PAIR_ADMIN gating, user create, API key mint (raw returned once, hash stored), marketplace listing, marketplace install, payload validation.
+- `cron.test.ts`: 4 integration tests covering publish-cron promotion, `CRON_*_ENABLED=false` short-circuit, expiry flip with audit row, future-dated leave-alone.
+- Frontend test runner wired: `escalationRule.test.ts` with 15 cases across importer and prose formats, SLA parsing, round-trip serialisation, and urgency classification. `pnpm --filter @brain/web test` now runs in CI.
+- `.github/workflows/release.yml`: tag-triggered release with CHANGELOG-to-release-notes extraction and version-vs-tag consistency check.
 
 ### Changed
 
 - `services/whatsapp.ts` reads token and phone id from validated `env` at call time instead of capturing `process.env` at module load. Improves testability and production safety.
+- Coverage floor raised from 40 to 60 (lines, functions, statements) and 70 (branches) in `apps/api/vitest.config.ts`. Set just below current actuals so regressions fail CI; intent is to ratchet up each cycle.
+
+### Notes
+
+- Cron runner must be deployed with `DATABASE_URL` pointing to the BYPASSRLS migrate role (or a role that sets `app.is_admin='true'` on every connection). The current cron code queries `scheduled_jobs` and `entries` without first setting `app.tenant_id`, which RLS would block on a plain `app_runtime` connection. Documented in the cron test file header.
+- CI `dependency-audit` job reports 2 critical (`fast-jwt` via `@fastify/jwt@8`) and 16 high advisories at release time. None are introduced by this release; all are transitive upstream issues pending ecosystem patches. Tracking for v0.1.1: bump `@fastify/jwt` to a release that pulls in a patched `fast-jwt`, swap `xlsx@0.18.5` for the maintained SheetJS CDN package or an alternative, upgrade `bcrypt` past the old `node-pre-gyp`/`tar` transitive path, bump `@vercel/node` for patched `undici`/`minimatch`, and bump `nodemailer` past the `addressparser` DoS.
+
+### Fixed
+
+- Prose escalation-rule parser (`apps/web/src/lib/escalationRule.ts`) no longer truncates dotted email domains (`finance@pairai.com` now survives round-trip). The regex captured up to the first `.`; the fix runs the match to end-of-cleaned-string with an optional trailing period.
+- `POST /api/v1/analytics/event` used the top-level `prisma` client instead of `req.withTenant`, so every insert was blocked by the `content_analytics` RLS policy. Wrapped in `req.withTenant` so the tenant session variable is set before the insert.
 
 ## [0.1.0] - 2026-04-18
 

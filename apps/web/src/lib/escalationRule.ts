@@ -72,7 +72,11 @@ function parseProseTrigger(s: string): ParsedEscalationRule {
   const autoMatch = rest.match(/\bAuto\s*:\s*([\s\S]+?)\s*$/i);
   if (autoMatch) {
     out.autoResponse = autoMatch[1]!.trim().replace(/\.$/, "");
-    rest = rest.slice(0, autoMatch.index).trim().replace(/\.\s*$/, "").trim();
+    rest = rest
+      .slice(0, autoMatch.index)
+      .trim()
+      .replace(/\.\s*$/, "")
+      .trim();
   }
 
   const slaMatch = rest.match(/\bSLA\s*:\s*([^.]+?)\s*(?:\.|$)/i);
@@ -84,24 +88,37 @@ function parseProseTrigger(s: string): ParsedEscalationRule {
       .trim();
   }
 
-  const escalateMatch = rest.match(/\bEscalate[sd]?\s+to\s+([^.]+?)\s*(?:\.|$)/i);
+  // After upstream removal of SLA and Auto sections, any trailing "Escalate to X"
+  // runs to end-of-string. Use a greedy-to-end capture with optional trailing
+  // period so dotted domains (e.g. finance@pairai.com) parse as a single token.
+  const escalateMatch = rest.match(/\bEscalate[sd]?\s+to\s+(.+?)\s*\.?\s*$/i);
   if (escalateMatch) {
     out.escalationTarget = escalateMatch[1]!.trim();
-    rest = (rest.slice(0, escalateMatch.index) + rest.slice(escalateMatch.index! + escalateMatch[0].length))
+    rest = (
+      rest.slice(0, escalateMatch.index) +
+      rest.slice(escalateMatch.index! + escalateMatch[0].length)
+    )
       .replace(/\s+/g, " ")
       .replace(/\.\s*$/, "")
       .trim();
   } else {
     const handledMatch = rest.match(/\bHandled\s+by\s+[^.]+?\.\s*No\s+escalation\s+needed\.?/i);
     if (handledMatch) {
-      rest = rest.replace(handledMatch[0], "").replace(/\s+/g, " ").replace(/\.\s*$/, "").trim();
+      rest = rest
+        .replace(handledMatch[0], "")
+        .replace(/\s+/g, " ")
+        .replace(/\.\s*$/, "")
+        .trim();
     }
   }
 
   const dashIdx = rest.indexOf(" - ");
   if (dashIdx > 0) {
     out.category = rest.slice(0, dashIdx).trim();
-    out.keywords = rest.slice(dashIdx + 3).trim().replace(/\.$/, "");
+    out.keywords = rest
+      .slice(dashIdx + 3)
+      .trim()
+      .replace(/\.$/, "");
   } else {
     out.category = rest.replace(/\.$/, "").trim();
   }
