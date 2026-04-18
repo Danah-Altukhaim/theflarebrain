@@ -2,7 +2,7 @@
 // All data comes from api/_fixtures.ts which is a static snapshot of the
 // local seed database. Writes do not persist; this is a read-only demo.
 
-export { MODULES, ENTRIES_BY_SLUG } from "./_fixtures";
+export { MODULES, ENTRIES_BY_SLUG } from "./_fixtures.js";
 
 export type VercelReq = {
   url?: string;

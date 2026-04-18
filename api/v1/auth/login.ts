@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "../../_db";
-import { signJwt } from "../../_auth";
+import { prisma } from "../../_db.js";
+import { signJwt } from "../../_auth.js";
 import bcrypt from "bcryptjs";
 
 const DUMMY_HASH = "$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012";

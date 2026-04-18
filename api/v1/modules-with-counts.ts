@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { authenticate } from "../_auth";
-import { withTenant } from "../_db";
+import { authenticate } from "../_auth.js";
+import { withTenant } from "../_db.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -12,19 +12,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ success: false, error: { message: "Unauthorized" } });
   }
 
-  const modules = await withTenant(auth.tenantId, async (tx: any) => {
-    return tx.module.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        slug: true,
-        label: true,
-        icon: true,
-        _count: { select: { entries: true } },
-      },
-      orderBy: { createdAt: "asc" },
-    });
-  }, auth.isAdmin);
+  const modules = await withTenant(
+    auth.tenantId,
+    async (tx: any) => {
+      return tx.module.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          slug: true,
+          label: true,
+          icon: true,
+          _count: { select: { entries: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    },
+    auth.isAdmin,
+  );
 
   const data = modules.map((m: any) => ({
     id: m.id,

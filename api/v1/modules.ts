@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { authenticate } from "../_auth";
-import { withTenant } from "../_db";
+import { authenticate } from "../_auth.js";
+import { withTenant } from "../_db.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET")
