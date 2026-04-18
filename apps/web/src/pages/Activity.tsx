@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { filterVisibleModules } from "../lib/modules.js";
 import { Icon } from "../components/Icon.js";
 
 type Action = "create" | "update" | "delete" | "rollback";
@@ -79,7 +80,7 @@ export function Activity() {
 
   useEffect(() => {
     api<Module[]>("/api/v1/modules")
-      .then(setModules)
+      .then((mods) => setModules(filterVisibleModules(mods)))
       .catch(() => setModules([]));
   }, []);
 

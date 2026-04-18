@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { filterVisibleModules } from "../lib/modules.js";
 import { Icon } from "../components/Icon.js";
 import { useAuth } from "../state/auth.js";
 
@@ -48,15 +49,7 @@ export function Knowledge() {
   useEffect(() => {
     api<Module[]>("/api/v1/modules")
       .then((mods) => {
-        const filtered = mods.filter(
-          (m) =>
-            m.slug !== "announcements" &&
-            m.slug !== "14-announcements" &&
-            m.slug !== "booking-flows" &&
-            m.slug !== "response_templates" &&
-            m.slug !== "response-templates" &&
-            !/active\s*alerts|announcements|booking\s*flows|response\s*templates|reference\s*documents?/i.test(m.label),
-        );
+        const filtered = filterVisibleModules(mods);
         setModules(filtered);
         setLoading(false);
 
