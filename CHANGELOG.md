@@ -4,6 +4,12 @@ All notable changes to The Brain are recorded here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-18
+
+### Fixed
+
+- CI `test:coverage` job broke under v0.1.1 because the `minimatch>=10.2.3` pnpm override replaced the minimatch used by `test-exclude` (a dep of `@vitest/coverage-v8`), which still imports the old default export that was removed in minimatch 10. Removed the minimatch override and added the three minimatch advisories (`CVE-2026-26996`, `CVE-2026-27903`, `CVE-2026-27904`) to `pnpm.auditConfig.ignoreCves` instead. Runtime exposure is limited: minimatch is pulled in through `@vercel/node` which is a build/dev dep; the prod serverless runtime ships Vercel's own. Tracking a proper `@vitest/coverage-v8` bump for a follow-up.
+
 ## [0.1.1] - 2026-04-18
 
 ### Security

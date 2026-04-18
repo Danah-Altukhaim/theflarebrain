@@ -1,6 +1,6 @@
 {
   "name": "the-brain",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "engines": {
@@ -26,7 +26,6 @@
   "pnpm": {
     "overrides": {
       "undici@<6.24.0": ">=6.24.0",
-      "minimatch@<10.2.3": ">=10.2.3",
       "tar@<7.5.11": ">=7.5.11",
       "fast-jwt@<6.2.0": ">=6.2.0"
     },
@@ -34,7 +33,10 @@
       "ignoreCves": [
         "CVE-2023-30533",
         "CVE-2024-22363",
-        "CVE-2026-25223"
+        "CVE-2026-25223",
+        "CVE-2026-26996",
+        "CVE-2026-27903",
+        "CVE-2026-27904"
       ]
     }
   },
