@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { randomBytes, createHash } from "node:crypto";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { ModuleSchema, Role } from "@brain/shared";
 import { MARKETPLACE } from "../services/marketplace.js";
@@ -39,10 +39,7 @@ const routes: FastifyPluginAsync = async (app) => {
   });
 
   app.post("/modules", async (req) => {
-    const body = z
-      .object({ tenantId: z.string().uuid() })
-      .merge(ModuleSchema)
-      .parse(req.body);
+    const body = z.object({ tenantId: z.string().uuid() }).merge(ModuleSchema).parse(req.body);
     const mod = await req.withTenant((tx) =>
       tx.module.create({
         data: {

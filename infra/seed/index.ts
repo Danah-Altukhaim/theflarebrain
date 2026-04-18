@@ -7,7 +7,7 @@
  *
  * Run: `pnpm seed`
  */
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { MODULES, ENTRIES_BY_SLUG } from "../../api/_fixtures";

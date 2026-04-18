@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { unauthorized } from "../lib/errors.js";
