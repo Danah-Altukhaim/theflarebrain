@@ -199,7 +199,7 @@ export async function parseUtterance(input: ParserInput): Promise<ParserResult> 
     },
     {
       type: "text",
-      text: "BRAND GLOSSARY (EN→AR): Future Kid → فيوتشر كيد; branch → فرع; promotion → عرض; ride → لعبة; bank card → بطاقة بنكية. TONE: warm, concise, family-friendly. Kuwait market context.",
+      text: "BRAND GLOSSARY (EN→AR): Flare Fitness → فلير فيتنس; branch → فرع; promotion → عرض; ride → لعبة; bank card → بطاقة بنكية. TONE: warm, concise, family-friendly. Kuwait market context.",
       cache_control: { type: "ephemeral" },
     },
   ] as unknown as Anthropic.Messages.TextBlockParam[];

@@ -12,7 +12,7 @@
  *  - /kb-health returns a version and fallback flag
  *  - analytics event write requires write:analytics or read:kb
  *
- * Seed dependency: `pnpm seed` must have run; uses `future-kid` tenant.
+ * Seed dependency: `pnpm seed` must have run; uses `flare-fitness` tenant.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash, randomBytes } from "node:crypto";
@@ -20,7 +20,7 @@ import type { FastifyInstance } from "fastify";
 import { PrismaClient } from "@prisma/client";
 import { buildApp } from "../server.js";
 
-const TENANT_SLUG = "future-kid";
+const TENANT_SLUG = "flare-fitness";
 
 type MintedKey = { raw: string; id: string };
 
@@ -63,7 +63,7 @@ describe("public KB API", () => {
     await app.ready();
 
     const tenant = await admin.tenant.findUnique({ where: { slug: TENANT_SLUG } });
-    if (!tenant) throw new Error("seed the future-kid tenant first (pnpm seed)");
+    if (!tenant) throw new Error("seed the flare-fitness tenant first (pnpm seed)");
     tenantId = tenant.id;
 
     readKey = await mintKey(admin, tenantId, ["read:kb"]);

@@ -23,7 +23,7 @@ describe("RLS cross-tenant isolation", () => {
   let tenantB: string;
 
   beforeAll(async () => {
-    const a = await adminPrisma.tenant.findUnique({ where: { slug: "future-kid" } });
+    const a = await adminPrisma.tenant.findUnique({ where: { slug: "flare-fitness" } });
     if (!a) throw new Error("Run `pnpm seed` first");
     tenantA = a.id;
 
@@ -46,11 +46,23 @@ describe("RLS cross-tenant isolation", () => {
     });
     const mod = await adminPrisma.module.upsert({
       where: { tenantId_slug: { tenantId: tenantB, slug: "faqs" } },
-      create: { tenantId: tenantB, slug: "faqs", label: "FAQs", icon: "help-circle", fieldDefinitions: [] },
+      create: {
+        tenantId: tenantB,
+        slug: "faqs",
+        label: "FAQs",
+        icon: "help-circle",
+        fieldDefinitions: [],
+      },
       update: {},
     });
     await adminPrisma.entry.upsert({
-      where: { tenantId_moduleId_externalId: { tenantId: tenantB, moduleId: mod.id, externalId: "rls-probe" } },
+      where: {
+        tenantId_moduleId_externalId: {
+          tenantId: tenantB,
+          moduleId: mod.id,
+          externalId: "rls-probe",
+        },
+      },
       create: {
         tenantId: tenantB,
         moduleId: mod.id,

@@ -1,5 +1,5 @@
 /**
- * Bulk-import every file in the Future Kid Google Drive subtree + top-level
+ * Bulk-import every file in the Flare Fitness Google Drive subtree + top-level
  * as a `documents` entry in The Brain. Idempotent via externalId = drive-<id>.
  *
  * Run:
@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3100/api/v1";
-const TENANT_SLUG = "future-kid";
+const TENANT_SLUG = "flare-fitness";
 const EMAIL = "admin@pairai.com";
 const PASSWORD = "password1";
 
@@ -153,10 +153,7 @@ async function insertDoc(
   }
   const txt = await r.text();
   // Already-exists signals
-  if (
-    r.status === 409 ||
-    (/duplicate|unique|already exists/i.test(txt) && /external/i.test(txt))
-  ) {
+  if (r.status === 409 || (/duplicate|unique|already exists/i.test(txt) && /external/i.test(txt))) {
     bump(kind, "skipped");
     existing.add(externalId);
     return;
@@ -168,11 +165,7 @@ async function insertDoc(
     return;
   }
   // Zod validation error mentioning description -> retry with fallback
-  if (
-    r.status === 400 &&
-    /description/i.test(txt) &&
-    !descriptionFallback
-  ) {
+  if (r.status === 400 && /description/i.test(txt) && !descriptionFallback) {
     return insertDoc(f, existing, "Imported from Google Drive", forceOtherKind);
   }
   // kind enum rejected -> retry forcing 'other'

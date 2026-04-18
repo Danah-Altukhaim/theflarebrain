@@ -2,15 +2,13 @@ import { useAuth } from "../state/auth.js";
 
 let isRedirecting = false;
 
-export async function api<T = unknown>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const token = useAuth.getState().token;
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
   const resp = await fetch(path, {
     ...init,
     headers: {
-      "content-type": "application/json",
+      ...(isFormData ? {} : { "content-type": "application/json" }),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },

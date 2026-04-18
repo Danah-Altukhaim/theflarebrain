@@ -1,7 +1,7 @@
 const API = (process.env.BRAIN_API ?? "http://127.0.0.1:3100").replace(/\/$/, "") + "/api/v1";
 const EMAIL = "admin@pairai.com";
 const PASSWORD = "password1";
-const TENANT = "future-kid";
+const TENANT = "flare-fitness";
 
 const TARGET_DRIVE_IDS = [
   "1hwBgJwTYc4hgRpZxwIFkPxx9lOowRElO",
@@ -16,7 +16,7 @@ async function login(): Promise<string> {
     body: JSON.stringify({ email: EMAIL, password: PASSWORD, tenantSlug: TENANT }),
   });
   if (!res.ok) throw new Error(`login failed: ${res.status} ${await res.text()}`);
-  const j = await res.json() as any;
+  const j = (await res.json()) as any;
   return j.data?.token ?? j.token ?? j.accessToken ?? j.access_token;
 }
 
@@ -29,7 +29,7 @@ async function listAllDocs(token: string): Promise<any[]> {
       headers: { authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(`list failed: ${res.status} ${await res.text()}`);
-    const j = await res.json() as any;
+    const j = (await res.json()) as any;
     const items = j.items ?? j.data ?? j.results ?? j;
     const arr = Array.isArray(items) ? items : [];
     out.push(...arr);

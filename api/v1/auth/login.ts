@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { tenant, user } = auth;
   const token = signJwt({ sub: user.id, tenantId: tenant.id, role: user.role });
 
-  const isDemoAccount = tenant.slug === "future-kid" && user.email === "sara@example.com";
+  const isDemoAccount = tenant.slug === "flare-fitness" && user.email === "bayan@example.com";
   const walkthroughCompleted = isDemoAccount ? true : user.walkthroughCompleted;
 
   await prisma.$transaction(async (tx: any) => {

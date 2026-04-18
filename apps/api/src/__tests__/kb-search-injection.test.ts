@@ -18,7 +18,7 @@ describe("kb /search injection resistance", () => {
   let tenantA: string;
 
   beforeAll(async () => {
-    const a = await adminPrisma.tenant.findUnique({ where: { slug: "future-kid" } });
+    const a = await adminPrisma.tenant.findUnique({ where: { slug: "flare-fitness" } });
     if (!a) throw new Error("Run `pnpm seed` first");
     tenantA = a.id;
   });
@@ -30,7 +30,7 @@ describe("kb /search injection resistance", () => {
   const probes = [
     "' OR 1=1 --",
     "'; DROP TABLE entries; --",
-    "\" OR \"\"=\"",
+    '" OR ""="',
     "%' OR 1=1 --",
     "$1; SELECT * FROM users --",
   ];

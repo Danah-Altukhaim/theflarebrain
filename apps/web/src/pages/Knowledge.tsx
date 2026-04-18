@@ -4,6 +4,7 @@ import { filterVisibleModules } from "../lib/modules.js";
 import { Icon } from "../components/Icon.js";
 import { useAuth } from "../state/auth.js";
 import { useModules } from "../state/modules.js";
+import { useWorkspace } from "../state/workspace.js";
 
 const MODULE_ICON: Record<string, string> = {
   branches: "marker",
@@ -41,8 +42,14 @@ function colorFor(slug: string) {
 export function Knowledge() {
   const { modules: allModules, loading } = useModules();
   const user = useAuth((s) => s.user);
+  const workspace = useWorkspace((s) => s.active);
 
-  const modules = useMemo(() => filterVisibleModules(allModules), [allModules]);
+  const modules = useMemo(() => {
+    const visible = filterVisibleModules(allModules);
+    const prefix = `${workspace}_`;
+    const scoped = visible.filter((m) => m.slug.startsWith(prefix));
+    return scoped.length ? scoped : visible;
+  }, [allModules, workspace]);
 
   const totalEntries = useMemo(() => modules.reduce((sum, m) => sum + m.entryCount, 0), [modules]);
 

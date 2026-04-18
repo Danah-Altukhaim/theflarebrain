@@ -37,7 +37,7 @@ describe("cron: publish", () => {
 
   beforeAll(async () => {
     vi.stubEnv("DATABASE_URL", MIGRATE_URL);
-    const tenant = await admin.tenant.findUnique({ where: { slug: "future-kid" } });
+    const tenant = await admin.tenant.findUnique({ where: { slug: "flare-fitness" } });
     if (!tenant) throw new Error("run pnpm seed first");
     tenantId = tenant.id;
     const mod = await admin.module.findFirst({ where: { tenantId, slug: "faqs" } });
@@ -148,7 +148,7 @@ describe("cron: expire", () => {
 
   beforeAll(async () => {
     vi.stubEnv("DATABASE_URL", MIGRATE_URL);
-    const tenant = await admin.tenant.findUnique({ where: { slug: "future-kid" } });
+    const tenant = await admin.tenant.findUnique({ where: { slug: "flare-fitness" } });
     if (!tenant) throw new Error("run pnpm seed first");
     tenantId = tenant.id;
     const mod = await admin.module.findFirst({ where: { tenantId, slug: "faqs" } });

@@ -1,8 +1,8 @@
 /**
- * One-shot Future Kid Drive data importer.
+ * One-shot Flare Fitness Drive data importer.
  *
  * Parses the pre-rendered natural-language sheet file (JSON { fileContent: string }),
- * installs/creates the required modules in The Brain for tenant future-kid, and
+ * installs/creates the required modules in The Brain for tenant flare-fitness, and
  * bulk-imports rows with idempotent externalIds.
  *
  * Run:
@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 
 // ---------- config ----------
 const API_BASE = process.env.API_BASE ?? "http://localhost:3100/api/v1";
-const TENANT_SLUG = "future-kid";
+const TENANT_SLUG = "flare-fitness";
 const TENANT_ID = "37cec7e9-c76d-44ba-af41-0162af00f4a7";
 const EMAIL = "admin@pairai.com";
 const PASSWORD = "password1";
@@ -106,8 +106,18 @@ function parseSheetDate(s: string): string | null {
   const m = /^(\d{4})-([A-Za-z]{3})-(\d{1,2})/.exec(t);
   if (m) {
     const months: Record<string, string> = {
-      Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
-      Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
+      Jan: "01",
+      Feb: "02",
+      Mar: "03",
+      Apr: "04",
+      May: "05",
+      Jun: "06",
+      Jul: "07",
+      Aug: "08",
+      Sep: "09",
+      Oct: "10",
+      Nov: "11",
+      Dec: "12",
     };
     const mm = months[m[2][0].toUpperCase() + m[2].slice(1).toLowerCase()];
     if (!mm) return null;
@@ -136,7 +146,11 @@ async function api(method: string, path: string, body?: unknown): Promise<Respon
 }
 
 async function login(): Promise<void> {
-  const r = await api("POST", "/auth/login", { tenantSlug: TENANT_SLUG, email: EMAIL, password: PASSWORD });
+  const r = await api("POST", "/auth/login", {
+    tenantSlug: TENANT_SLUG,
+    email: EMAIL,
+    password: PASSWORD,
+  });
   if (!r.ok) throw new Error(`Login failed: ${r.status} ${await r.text()}`);
   const j = (await r.json()) as { data: { token: string } };
   TOKEN = j.data.token;
@@ -264,24 +278,38 @@ function loadSheets(): Record<string, Sheet> {
   sheets.faqs = find((h) => /Question \(EN\)/.test(h) && /Answer \(EN\)/.test(h))!;
   sheets.response_templates = find((h) => /Template ID/.test(h) && /Script \(EN\)/.test(h))!;
   sheets.intents = find((h) => /Intent ID/.test(h) && /Intent Name/.test(h))!;
-  sheets.booking_flows = find((h) => /Flow ID/.test(h) && /Trigger/.test(h) && /Booking Link/.test(h))!;
+  sheets.booking_flows = find(
+    (h) => /Flow ID/.test(h) && /Trigger/.test(h) && /Booking Link/.test(h),
+  )!;
   // Approval_Gate starts with AI_Record_ID as the FIRST column (not Raw_Row). Raw_Archive also contains
   // AI_Record_ID but it's the 3rd column, so we must skip it.
-  sheets.approval_gate = find((h) => /^\|\s*AI[\\_]*Record[\\_]*ID\s*\|/.test(h) && /Review[\\_]*Status/.test(h))!;
+  sheets.approval_gate = find(
+    (h) => /^\|\s*AI[\\_]*Record[\\_]*ID\s*\|/.test(h) && /Review[\\_]*Status/.test(h),
+  )!;
 
   // --- New section matchers ---
-  sheets.change_requests = find((h) => /Change Type/.test(h) && /AI[\\_]*Pivot[\\_]*Strategy/.test(h))!;
+  sheets.change_requests = find(
+    (h) => /Change Type/.test(h) && /AI[\\_]*Pivot[\\_]*Strategy/.test(h),
+  )!;
   sheets.priority_matrix = find((h) => /Priority Info Only/.test(h))!;
   sheets.risks = find((h) => /Risk Scenario/.test(h) && /Mitigation/.test(h))!;
-  sheets.announcements = find((h) => /\|\s*Date\s*\|/.test(h) && /Action Required/.test(h) && /Deadline/.test(h))!;
+  sheets.announcements = find(
+    (h) => /\|\s*Date\s*\|/.test(h) && /Action Required/.test(h) && /Deadline/.test(h),
+  )!;
   sheets.known_issues = find((h) => /\|\s*Issue\s*\|/.test(h) && /PAIR AI Fix/.test(h))!;
   sheets.data_gaps = find((h) => /Data Gap/.test(h) && /Priority/.test(h))!;
   sheets.promotions_master = find((h) => /Promo[\\_]*Type/.test(h) && /Push Online/.test(h))!;
   sheets.enums = find((h) => /List[\\_]*Name/.test(h) && /Aux[\\_]*1/.test(h))!;
   sheets.bot_flow_steps = find((h) => /Step/.test(h) && /Bot Action/.test(h))!;
-  sheets.bot_buttons = find((h) => /Button Label/.test(h) && /Action/.test(h) && /Context/.test(h))!;
-  sheets.update_routing = find((h) => /Raw[\\_]*Update[\\_]*Type/.test(h) && /AI[\\_]*Category/.test(h))!;
-  sheets.priority_tiers = find((h) => /Priority[\\_]*Tier/.test(h) && /Priority[\\_]*Label/.test(h))!;
+  sheets.bot_buttons = find(
+    (h) => /Button Label/.test(h) && /Action/.test(h) && /Context/.test(h),
+  )!;
+  sheets.update_routing = find(
+    (h) => /Raw[\\_]*Update[\\_]*Type/.test(h) && /AI[\\_]*Category/.test(h),
+  )!;
+  sheets.priority_tiers = find(
+    (h) => /Priority[\\_]*Tier/.test(h) && /Priority[\\_]*Label/.test(h),
+  )!;
   sheets.branch_groups = find((h) => /Branch[\\_]*Name/.test(h) && /Branch[\\_]*Group/.test(h))!;
 
   for (const [k, v] of Object.entries(sheets)) {
@@ -299,8 +327,13 @@ function buildRamadanMap(s: Sheet | null): Map<string, string> {
     const [, name, , sun, mon, tue, wed, thu, fri, sat] = r;
     if (!name) continue;
     const hours = [
-      `SUN: ${sun}`, `MON: ${mon}`, `TUE: ${tue}`, `WED: ${wed}`,
-      `THU: ${thu}`, `FRI: ${fri}`, `SAT: ${sat}`,
+      `SUN: ${sun}`,
+      `MON: ${mon}`,
+      `TUE: ${tue}`,
+      `WED: ${wed}`,
+      `THU: ${thu}`,
+      `FRI: ${fri}`,
+      `SAT: ${sat}`,
     ].join("\n");
     m.set(slugify(name), hours);
   }
@@ -311,8 +344,13 @@ function buildRamadanMap(s: Sheet | null): Map<string, string> {
 async function patchRamadanHours(ramadan: Map<string, string>) {
   if (ramadan.size === 0) return;
   const r = await api("GET", "/entries/branches");
-  if (!r.ok) { console.warn(`[ramadan] GET branches -> ${r.status}`); return; }
-  const j = (await r.json()) as { data?: Array<{ id: string; externalId?: string | null; data?: Record<string, unknown> }> };
+  if (!r.ok) {
+    console.warn(`[ramadan] GET branches -> ${r.status}`);
+    return;
+  }
+  const j = (await r.json()) as {
+    data?: Array<{ id: string; externalId?: string | null; data?: Record<string, unknown> }>;
+  };
   let patched = 0;
   for (const entry of j.data ?? []) {
     const name = (entry.data as Record<string, unknown> | undefined)?.name_en as string | undefined;
@@ -322,9 +360,15 @@ async function patchRamadanHours(ramadan: Map<string, string>) {
     const existing = (entry.data as Record<string, unknown> | undefined)?.hours_ramadan;
     if (existing && String(existing).trim() === ram.trim()) continue;
     const merged = { ...(entry.data as Record<string, unknown>), hours_ramadan: ram };
-    const resp = await api("PATCH", `/entries/branches/${entry.id}`, { data: merged, changeSummary: "Sync Ramadan hours from master sheet" });
+    const resp = await api("PATCH", `/entries/branches/${entry.id}`, {
+      data: merged,
+      changeSummary: "Sync Ramadan hours from master sheet",
+    });
     if (resp.ok) patched++;
-    else console.warn(`[ramadan] PATCH ${name} -> ${resp.status}: ${(await resp.text()).slice(0, 160)}`);
+    else
+      console.warn(
+        `[ramadan] PATCH ${name} -> ${resp.status}: ${(await resp.text()).slice(0, 160)}`,
+      );
   }
   console.log(`[ramadan] patched ${patched} branch(es) with hours_ramadan`);
 }
@@ -334,16 +378,30 @@ async function importBranches(s: Sheet, ramadan: Map<string, string>) {
   // headers: # | Branch | Branch (Arabic) | Governorate | Status | Google Location | SUN..SAT
   for (const r of s.rows) {
     const [, nameEn, nameAr, governorate, status, mapsUrl, sun, mon, tue, wed, thu, fri, sat] = r;
-    if (!nameEn || nameEn === "" ) { bump("branches", "skipped"); continue; }
-    if (/CLOSED/i.test(status) || /CLOSED/i.test(nameEn)) { bump("branches", "skipped"); continue; }
-    if (/Souq Sharq Mall/i.test(nameEn) || /Safat Al Mubarakiya/i.test(nameEn)) { bump("branches", "skipped"); continue; }
+    if (!nameEn || nameEn === "") {
+      bump("branches", "skipped");
+      continue;
+    }
+    if (/CLOSED/i.test(status) || /CLOSED/i.test(nameEn)) {
+      bump("branches", "skipped");
+      continue;
+    }
+    if (/Souq Sharq Mall/i.test(nameEn) || /Safat Al Mubarakiya/i.test(nameEn)) {
+      bump("branches", "skipped");
+      continue;
+    }
     const gov = ["Hawalli", "Jahra", "Ahmadi", "Farwaniya", "Al-Asimah"].includes(governorate)
       ? governorate
       : "Al-Asimah";
     const st = /Active/i.test(status) ? "Active" : /CLOSED/i.test(status) ? "CLOSED" : "Active";
     const hours = [
-      `SUN: ${sun}`, `MON: ${mon}`, `TUE: ${tue}`, `WED: ${wed}`,
-      `THU: ${thu}`, `FRI: ${fri}`, `SAT: ${sat}`,
+      `SUN: ${sun}`,
+      `MON: ${mon}`,
+      `TUE: ${tue}`,
+      `WED: ${wed}`,
+      `THU: ${thu}`,
+      `FRI: ${fri}`,
+      `SAT: ${sat}`,
     ].join("\n");
     const data: Record<string, unknown> = {
       name_en: nameEn,
@@ -365,7 +423,10 @@ async function importFaqs(s: Sheet) {
   // headers: # | Question (EN) | Answer (EN) | Answer (AR) | Category | Source | Date Added | AI Approved?
   for (const r of s.rows) {
     const [num, qEn, aEn, aAr, category] = r;
-    if (!qEn || isPlaceholder(qEn) || !aEn || isPlaceholder(aEn)) { bump("faqs", "skipped"); continue; }
+    if (!qEn || isPlaceholder(qEn) || !aEn || isPlaceholder(aEn)) {
+      bump("faqs", "skipped");
+      continue;
+    }
     const data: Record<string, unknown> = {
       question_en: qEn,
       question_ar: qEn, // sheet has no Arabic question; mirror EN
@@ -385,8 +446,14 @@ async function importResponseTemplates(s: Sheet) {
   // headers: Template ID | Category | Use_Case | Script (EN) | Script (AR) | Variables_Used | Tone | Editable?
   for (const r of s.rows) {
     const [tid, category, useCase, scriptEn, scriptAr, , tone] = r;
-    if (!tid || tid === "N/A" || isPlaceholder(tid)) { bump("response_templates", "skipped"); continue; }
-    if (!scriptEn || isPlaceholder(scriptEn)) { bump("response_templates", "skipped"); continue; }
+    if (!tid || tid === "N/A" || isPlaceholder(tid)) {
+      bump("response_templates", "skipped");
+      continue;
+    }
+    if (!scriptEn || isPlaceholder(scriptEn)) {
+      bump("response_templates", "skipped");
+      continue;
+    }
     const data: Record<string, unknown> = {
       intent: category || tid,
       message_en: scriptEn,
@@ -406,12 +473,21 @@ async function importEscalation(s: Sheet) {
   // headers: Trigger Type | Example Keywords | Escalate? | To Whom | SLA (Hours) | Auto Response Script
   for (const r of s.rows) {
     const [triggerType, keywords, , toWhom, sla, script] = r;
-    if (!triggerType || isPlaceholder(triggerType)) { bump("escalation_rules", "skipped"); continue; }
+    if (!triggerType || isPlaceholder(triggerType)) {
+      bump("escalation_rules", "skipped");
+      continue;
+    }
     let channel = "human_chat";
     if (/whatsapp/i.test(toWhom)) channel = "whatsapp";
     else if (/phone|hotline|call/i.test(toWhom)) channel = "phone";
     else if (/email/i.test(toWhom)) channel = "email";
-    const trigger = [`${triggerType}`, keywords && `Keywords: ${keywords}`, toWhom && `To: ${toWhom}`, sla && `SLA: ${sla}h`, script && `Script: ${script}`]
+    const trigger = [
+      `${triggerType}`,
+      keywords && `Keywords: ${keywords}`,
+      toWhom && `To: ${toWhom}`,
+      sla && `SLA: ${sla}h`,
+      script && `Script: ${script}`,
+    ]
       .filter(Boolean)
       .join("\n");
     await insertEntry("escalation_rules", `esc-${slugify(triggerType).slice(0, 60)}`, {
@@ -428,8 +504,14 @@ async function importPolicyMatrix(s: Sheet) {
   for (const r of s.rows) {
     idx++;
     const [area, rule, , exception] = r;
-    if (!area || isPlaceholder(area)) { bump("policy_matrix", "skipped"); continue; }
-    if (!rule || isPlaceholder(rule)) { bump("policy_matrix", "skipped"); continue; }
+    if (!area || isPlaceholder(area)) {
+      bump("policy_matrix", "skipped");
+      continue;
+    }
+    if (!rule || isPlaceholder(rule)) {
+      bump("policy_matrix", "skipped");
+      continue;
+    }
     const data: Record<string, unknown> = {
       scenario_en: area,
       scenario_ar: area,
@@ -447,8 +529,17 @@ async function importPolicyMatrix(s: Sheet) {
 async function importPartners() {
   // Derived from the response-templates third-party block and known FK partners.
   const partners = [
-    { name: "Al-Arfaj", type: "Corporate", notes: "20% discount for first responders (government/armed-forces/ministry employees). ID required at branch." },
-    { name: "Sheeel", type: "Loyalty", notes: "Recharge offers: Buy 5KD get 10KD; Buy 10KD get 20KD." },
+    {
+      name: "Al-Arfaj",
+      type: "Corporate",
+      notes:
+        "20% discount for first responders (government/armed-forces/ministry employees). ID required at branch.",
+    },
+    {
+      name: "Sheeel",
+      type: "Loyalty",
+      notes: "Recharge offers: Buy 5KD get 10KD; Buy 10KD get 20KD.",
+    },
     { name: "KNCC", type: "Corporate", notes: "Partner terms; see documents module." },
   ];
   for (const p of partners) {
@@ -468,27 +559,64 @@ async function importApprovedPromotions(s: Sheet) {
   // Review_Status | Review_Notes | Push_to_AI
   const seenNames = new Set<string>();
   for (const r of s.rows) {
-    const [aiId, updateName, rawMsg, msgEn, msgAr, aiCategory, startRaw, endRaw, activeStatus, , , , , reviewStatus] = r;
-    if (!aiId || isPlaceholder(aiId)) { bump("promotions", "skipped"); continue; }
+    const [
+      aiId,
+      updateName,
+      rawMsg,
+      msgEn,
+      msgAr,
+      aiCategory,
+      startRaw,
+      endRaw,
+      activeStatus,
+      ,
+      ,
+      ,
+      ,
+      reviewStatus,
+    ] = r;
+    if (!aiId || isPlaceholder(aiId)) {
+      bump("promotions", "skipped");
+      continue;
+    }
     // Skip test/junk rows
     const junkIds = new Set(["FK-001", "FK-002", "FK-006", "FK-007"]);
-    if (junkIds.has(aiId.trim())) { bump("promotions", "skipped"); continue; }
-    if (/test/i.test(updateName) && !/testing eid offer/i.test(updateName)) { /* allow; final guard below */ }
+    if (junkIds.has(aiId.trim())) {
+      bump("promotions", "skipped");
+      continue;
+    }
+    if (/test/i.test(updateName) && !/testing eid offer/i.test(updateName)) {
+      /* allow; final guard below */
+    }
     // Review must be Approved, not Expired
-    if (!/Approved/i.test(reviewStatus || "")) { bump("promotions", "skipped"); continue; }
-    if (/Expired/i.test(activeStatus || "")) { bump("promotions", "skipped"); continue; }
+    if (!/Approved/i.test(reviewStatus || "")) {
+      bump("promotions", "skipped");
+      continue;
+    }
+    if (/Expired/i.test(activeStatus || "")) {
+      bump("promotions", "skipped");
+      continue;
+    }
     // Message must be real English content
-    const effectiveEn = msgEn && !isPlaceholder(msgEn) ? msgEn : rawMsg && !isPlaceholder(rawMsg) ? rawMsg : "";
-    if (!effectiveEn) { bump("promotions", "skipped"); continue; }
+    const effectiveEn =
+      msgEn && !isPlaceholder(msgEn) ? msgEn : rawMsg && !isPlaceholder(rawMsg) ? rawMsg : "";
+    if (!effectiveEn) {
+      bump("promotions", "skipped");
+      continue;
+    }
     // De-dup near-duplicate Al-Arfaj rows by update_name
     const nameKey = (updateName || "").trim().toLowerCase();
-    if (seenNames.has(nameKey)) { bump("promotions", "skipped"); continue; }
+    if (seenNames.has(nameKey)) {
+      bump("promotions", "skipped");
+      continue;
+    }
     seenNames.add(nameKey);
 
     const cat = (aiCategory || "").toLowerCase();
     let type = "Promo";
     if (cat.includes("bank")) type = "Bank";
-    else if (cat.includes("season") || cat.includes("eid") || cat.includes("ramadan")) type = "Seasonal";
+    else if (cat.includes("season") || cat.includes("eid") || cat.includes("ramadan"))
+      type = "Seasonal";
     else if (cat.includes("system") || cat.includes("update")) type = "Update";
     else if (cat.includes("operational") || cat.includes("ops")) type = "Ops";
     else if (cat.includes("partner")) type = "Promo";
@@ -514,7 +642,10 @@ async function importIntents(s: Sheet) {
   // headers: Intent ID | Intent Name | Description | Response Template Ref | Requires CRM? | Escalation Check? | Revenue Opportunity?
   for (const r of s.rows) {
     const [iid, name, description, templateRef] = r;
-    if (!iid || isPlaceholder(iid)) { bump("intents", "skipped"); continue; }
+    if (!iid || isPlaceholder(iid)) {
+      bump("intents", "skipped");
+      continue;
+    }
     await insertEntry("intents", `intent-${slugify(iid)}`, {
       name: name || iid,
       description: description || "",
@@ -528,7 +659,10 @@ async function importBookingFlows(s: Sheet) {
   // headers: Flow ID | Trigger | Questions to Ask | Booking Link | Upsell Option | Branch Limitation | Status | Notes
   for (const r of s.rows) {
     const [fid, trigger, questions, bookingLink, upsell, branchLim, status] = r;
-    if (!fid || isPlaceholder(fid)) { bump("booking_flows", "skipped"); continue; }
+    if (!fid || isPlaceholder(fid)) {
+      bump("booking_flows", "skipped");
+      continue;
+    }
     const data: Record<string, unknown> = {
       flow_id: fid,
       trigger: trigger || "",
@@ -595,9 +729,29 @@ async function importChangeRequests(s: Sheet) {
   let idx = 0;
   for (const r of s.rows) {
     idx++;
-    const [changeType, status, yn, category, tone, probability, impact, branches, audience, offerCat, directPriority, visibilityType, pivot] = r;
-    if (!changeType || isPlaceholder(changeType)) { bump("change-requests", "skipped"); continue; }
-    if (!nonEmptyRow(r)) { bump("change-requests", "skipped"); continue; }
+    const [
+      changeType,
+      status,
+      yn,
+      category,
+      tone,
+      probability,
+      impact,
+      branches,
+      audience,
+      offerCat,
+      directPriority,
+      visibilityType,
+      pivot,
+    ] = r;
+    if (!changeType || isPlaceholder(changeType)) {
+      bump("change-requests", "skipped");
+      continue;
+    }
+    if (!nonEmptyRow(r)) {
+      bump("change-requests", "skipped");
+      continue;
+    }
     const data = {
       change_type: changeType,
       status: status || "",
@@ -622,7 +776,10 @@ async function importPriorityMatrix(s: Sheet) {
   // Priority Info Only (AI) | Category Explained | Why
   for (const r of s.rows) {
     const [priority, category, why] = r;
-    if (!priority || !category) { bump("priority-matrix", "skipped"); continue; }
+    if (!priority || !category) {
+      bump("priority-matrix", "skipped");
+      continue;
+    }
     await insertEntry("priority-matrix", `priority-${slugify(category)}`, {
       priority_number: priority,
       category,
@@ -636,7 +793,10 @@ async function importRisks(s: Sheet) {
   // Risk Scenario | Probability | Impact | Mitigation | Owner | Last Reviewed
   for (const r of s.rows) {
     const [scenario, probability, impact, mitigation, owner, lastReviewed] = r;
-    if (!scenario || isPlaceholder(scenario)) { bump("risks", "skipped"); continue; }
+    if (!scenario || isPlaceholder(scenario)) {
+      bump("risks", "skipped");
+      continue;
+    }
     await insertEntry("risks", `risk-${slugify(scenario).slice(0, 60)}`, {
       scenario,
       probability: probability || "",
@@ -655,7 +815,10 @@ async function importAnnouncements(s: Sheet) {
   for (const r of s.rows) {
     idx++;
     const [date, title, category, audience, actionRequired, owner, deadline, status, notes] = r;
-    if (!title || isPlaceholder(title)) { bump("announcements", "skipped"); continue; }
+    if (!title || isPlaceholder(title)) {
+      bump("announcements", "skipped");
+      continue;
+    }
     await insertEntry("announcements", `ann-${slugify(title).slice(0, 60) || String(idx)}`, {
       date: date || "",
       title,
@@ -675,7 +838,10 @@ async function importKnownIssues(s: Sheet) {
   // # | Issue | Severity | Impact | Status | PAIR AI Fix / Action
   for (const r of s.rows) {
     const [num, issue, severity, impact, status, fix] = r;
-    if (!issue || isPlaceholder(issue)) { bump("known-issues", "skipped"); continue; }
+    if (!issue || isPlaceholder(issue)) {
+      bump("known-issues", "skipped");
+      continue;
+    }
     const n = String(num || "").padStart(3, "0");
     await insertEntry("known-issues", `issue-${n || slugify(issue).slice(0, 40)}`, {
       issue,
@@ -692,7 +858,10 @@ async function importDataGaps(s: Sheet) {
   // # | Data Gap | Category | Priority | Owner | Status
   for (const r of s.rows) {
     const [num, gap, category, priority, owner, status] = r;
-    if (!gap || isPlaceholder(gap)) { bump("data-gaps", "skipped"); continue; }
+    if (!gap || isPlaceholder(gap)) {
+      bump("data-gaps", "skipped");
+      continue;
+    }
     const n = String(num || "").padStart(3, "0");
     await insertEntry("data-gaps", `gap-${n || slugify(gap).slice(0, 40)}`, {
       data_gap: gap,
@@ -712,8 +881,26 @@ async function importPromotionsMaster(s: Sheet) {
   let idx = 0;
   for (const r of s.rows) {
     idx++;
-    const [promoType, promoStatus, tier, eligibility, strategic, journey, scope, exclusions, branches, recurring, days, aiTrigger, aiPriority, pushOnline] = r;
-    if (!promoType || isPlaceholder(promoType)) { bump("promotions-master", "skipped"); continue; }
+    const [
+      promoType,
+      promoStatus,
+      tier,
+      eligibility,
+      strategic,
+      journey,
+      scope,
+      exclusions,
+      branches,
+      recurring,
+      days,
+      aiTrigger,
+      aiPriority,
+      pushOnline,
+    ] = r;
+    if (!promoType || isPlaceholder(promoType)) {
+      bump("promotions-master", "skipped");
+      continue;
+    }
     await insertEntry("promotions-master", `pm-${slugify(promoType)}-${idx}`, {
       promo_type: promoType,
       promo_status: promoStatus || "",
@@ -738,7 +925,10 @@ async function importEnums(s: Sheet) {
   // List_Name | Value | Aux_1-Category | Aux_2-Priority | Aux_3-Severity
   for (const r of s.rows) {
     const [list, value, aux1, aux2, aux3] = r;
-    if (!list || !value || isPlaceholder(list) || isPlaceholder(value)) { bump("enums", "skipped"); continue; }
+    if (!list || !value || isPlaceholder(list) || isPlaceholder(value)) {
+      bump("enums", "skipped");
+      continue;
+    }
     await insertEntry("enums", `enum-${slugify(list)}-${slugify(value).slice(0, 60)}`, {
       list_name: list,
       value,
@@ -754,7 +944,10 @@ async function importBotFlows(stepsSheet: Sheet, buttonsSheet: Sheet) {
   if (stepsSheet) {
     for (const r of stepsSheet.rows) {
       const [step, trigger, action, dataReq, esc] = r;
-      if (!step || !action) { bump("bot-flows", "skipped"); continue; }
+      if (!step || !action) {
+        bump("bot-flows", "skipped");
+        continue;
+      }
       await insertEntry("bot-flows", `step-${slugify(step)}`, {
         kind: "step",
         step_number: step,
@@ -770,7 +963,10 @@ async function importBotFlows(stepsSheet: Sheet, buttonsSheet: Sheet) {
   if (buttonsSheet) {
     for (const r of buttonsSheet.rows) {
       const [label, action, context] = r;
-      if (!label || !action) { bump("bot-flows", "skipped"); continue; }
+      if (!label || !action) {
+        bump("bot-flows", "skipped");
+        continue;
+      }
       await insertEntry("bot-flows", `button-${slugify(label)}`, {
         kind: "button",
         step_number: "",
@@ -789,7 +985,10 @@ async function importUpdateRouting(s: Sheet) {
   // Raw_Update_Type | AI_Category | Default_Template_ID | Owner_Function | Needs_Priority | Needs_Operational_Type | Default_Priority_Tier
   for (const r of s.rows) {
     const [rawType, aiCategory, tplId, ownerFn, needsPriority, needsOpType, defaultTier] = r;
-    if (!rawType || isPlaceholder(rawType)) { bump("update-routing", "skipped"); continue; }
+    if (!rawType || isPlaceholder(rawType)) {
+      bump("update-routing", "skipped");
+      continue;
+    }
     await insertEntry("update-routing", `ur-${slugify(rawType).slice(0, 60)}`, {
       raw_update_type: rawType,
       ai_category: aiCategory || "",
@@ -807,12 +1006,19 @@ async function importPriorityTiers(s: Sheet) {
   // Priority_Tier | Priority_Label | Recommended_Use
   for (const r of s.rows) {
     const [tier, label, use] = r;
-    if (tier === "" || tier === undefined || !label) { bump("priority-tiers", "skipped"); continue; }
-    await insertEntry("priority-tiers", `tier-${slugify(String(tier))}-${slugify(label).slice(0, 40)}`, {
-      priority_tier: String(tier),
-      priority_label: label,
-      recommended_use: use || "",
-    });
+    if (tier === "" || tier === undefined || !label) {
+      bump("priority-tiers", "skipped");
+      continue;
+    }
+    await insertEntry(
+      "priority-tiers",
+      `tier-${slugify(String(tier))}-${slugify(label).slice(0, 40)}`,
+      {
+        priority_tier: String(tier),
+        priority_label: label,
+        recommended_use: use || "",
+      },
+    );
   }
 }
 
@@ -821,7 +1027,10 @@ async function importBranchGroups(s: Sheet) {
   // Branch_Name | Branch_Group
   for (const r of s.rows) {
     const [name, group] = r;
-    if (!name || !group) { bump("branch-groups", "skipped"); continue; }
+    if (!name || !group) {
+      bump("branch-groups", "skipped");
+      continue;
+    }
     await insertEntry("branch-groups", `bg-${slugify(name).slice(0, 60)}`, {
       branch_name: name,
       branch_group: group,
@@ -851,7 +1060,13 @@ async function main() {
     fields: [
       { key: "name", label: "Name", type: "text", required: true, localized: false },
       { key: "description", label: "Intent", type: "textarea", required: false, localized: false },
-      { key: "ai_instructions", label: "AI Instructions", type: "textarea", required: false, localized: false },
+      {
+        key: "ai_instructions",
+        label: "AI Instructions",
+        type: "textarea",
+        required: false,
+        localized: false,
+      },
     ],
   });
 
@@ -863,9 +1078,21 @@ async function main() {
       { key: "flow_id", label: "Flow ID", type: "text", required: true, localized: false },
       { key: "trigger", label: "Trigger", type: "text", required: true, localized: false },
       { key: "questions", label: "Questions", type: "textarea", required: false, localized: false },
-      { key: "booking_link", label: "Booking Link", type: "url", required: false, localized: false },
+      {
+        key: "booking_link",
+        label: "Booking Link",
+        type: "url",
+        required: false,
+        localized: false,
+      },
       { key: "upsell", label: "Upsell", type: "text", required: false, localized: false },
-      { key: "branch_limit", label: "Branch Limit", type: "text", required: false, localized: false },
+      {
+        key: "branch_limit",
+        label: "Branch Limit",
+        type: "text",
+        required: false,
+        localized: false,
+      },
       { key: "status", label: "Status", type: "text", required: false, localized: false },
     ],
   });
@@ -876,10 +1103,23 @@ async function main() {
     icon: "file",
     fields: [
       { key: "title", label: "Title", type: "text", required: true, localized: false },
-      { key: "description", label: "Description", type: "textarea", required: false, localized: true },
+      {
+        key: "description",
+        label: "Description",
+        type: "textarea",
+        required: false,
+        localized: true,
+      },
       { key: "source_url", label: "Source URL", type: "url", required: true, localized: false },
       { key: "mime_type", label: "MIME Type", type: "text", required: false, localized: false },
-      { key: "kind", label: "Kind", type: "select", required: true, localized: false, options: ["pdf", "image", "doc", "other"] },
+      {
+        key: "kind",
+        label: "Kind",
+        type: "select",
+        required: true,
+        localized: false,
+        options: ["pdf", "image", "doc", "other"],
+      },
     ],
   });
 
@@ -899,10 +1139,34 @@ async function main() {
       { key: "impact", label: "Impact", type: "text", required: false, localized: false },
       { key: "branches", label: "Branches", type: "text", required: false, localized: false },
       { key: "audience", label: "Audience", type: "text", required: false, localized: false },
-      { key: "offer_category", label: "Offer Category", type: "text", required: false, localized: false },
-      { key: "direct_priority", label: "Direct Priority", type: "text", required: false, localized: false },
-      { key: "visibility_type", label: "Visibility Type", type: "text", required: false, localized: false },
-      { key: "ai_pivot_strategy", label: "AI Pivot Strategy", type: "text", required: false, localized: false },
+      {
+        key: "offer_category",
+        label: "Offer Category",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "direct_priority",
+        label: "Direct Priority",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "visibility_type",
+        label: "Visibility Type",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "ai_pivot_strategy",
+        label: "AI Pivot Strategy",
+        type: "text",
+        required: false,
+        localized: false,
+      },
     ],
   });
 
@@ -911,7 +1175,13 @@ async function main() {
     label: "Priority Matrix",
     icon: "bar-chart",
     fields: [
-      { key: "priority_number", label: "Priority Number", type: "text", required: true, localized: false },
+      {
+        key: "priority_number",
+        label: "Priority Number",
+        type: "text",
+        required: true,
+        localized: false,
+      },
       { key: "category", label: "Category", type: "text", required: true, localized: false },
       { key: "why", label: "Why", type: "textarea", required: false, localized: false },
     ],
@@ -925,9 +1195,21 @@ async function main() {
       { key: "scenario", label: "Scenario", type: "text", required: true, localized: false },
       { key: "probability", label: "Probability", type: "text", required: false, localized: false },
       { key: "impact", label: "Impact", type: "text", required: false, localized: false },
-      { key: "mitigation", label: "Mitigation", type: "textarea", required: false, localized: false },
+      {
+        key: "mitigation",
+        label: "Mitigation",
+        type: "textarea",
+        required: false,
+        localized: false,
+      },
       { key: "owner", label: "Owner", type: "text", required: false, localized: false },
-      { key: "last_reviewed", label: "Last Reviewed", type: "text", required: false, localized: false },
+      {
+        key: "last_reviewed",
+        label: "Last Reviewed",
+        type: "text",
+        required: false,
+        localized: false,
+      },
     ],
   });
 
@@ -940,7 +1222,13 @@ async function main() {
       { key: "title", label: "Title", type: "text", required: true, localized: false },
       { key: "category", label: "Category", type: "text", required: false, localized: false },
       { key: "audience", label: "Audience", type: "text", required: false, localized: false },
-      { key: "action_required", label: "Action Required", type: "textarea", required: false, localized: false },
+      {
+        key: "action_required",
+        label: "Action Required",
+        type: "textarea",
+        required: false,
+        localized: false,
+      },
       { key: "owner", label: "Owner", type: "text", required: false, localized: false },
       { key: "deadline", label: "Deadline", type: "text", required: false, localized: false },
       { key: "status", label: "Status", type: "text", required: false, localized: false },
@@ -957,7 +1245,13 @@ async function main() {
       { key: "severity", label: "Severity", type: "text", required: false, localized: false },
       { key: "impact", label: "Impact", type: "textarea", required: false, localized: false },
       { key: "status", label: "Status", type: "text", required: false, localized: false },
-      { key: "pair_ai_fix", label: "PAIR AI Fix", type: "textarea", required: false, localized: false },
+      {
+        key: "pair_ai_fix",
+        label: "PAIR AI Fix",
+        type: "textarea",
+        required: false,
+        localized: false,
+      },
     ],
   });
 
@@ -980,15 +1274,63 @@ async function main() {
     icon: "sparkles",
     fields: [
       { key: "promo_type", label: "Promo Type", type: "text", required: true, localized: false },
-      { key: "promo_status", label: "Promo Status", type: "text", required: false, localized: false },
-      { key: "promotion_tier", label: "Promotion Tier", type: "text", required: false, localized: false },
-      { key: "customer_eligibility_type", label: "Eligibility Type", type: "text", required: false, localized: false },
-      { key: "strategic_objective", label: "Strategic Objective", type: "text", required: false, localized: false },
-      { key: "customer_journey_stage", label: "Journey Stage", type: "text", required: false, localized: false },
-      { key: "product_scope", label: "Product Scope", type: "text", required: false, localized: false },
-      { key: "product_exclusions", label: "Product Exclusions", type: "text", required: false, localized: false },
+      {
+        key: "promo_status",
+        label: "Promo Status",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "promotion_tier",
+        label: "Promotion Tier",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "customer_eligibility_type",
+        label: "Eligibility Type",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "strategic_objective",
+        label: "Strategic Objective",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "customer_journey_stage",
+        label: "Journey Stage",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "product_scope",
+        label: "Product Scope",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "product_exclusions",
+        label: "Product Exclusions",
+        type: "text",
+        required: false,
+        localized: false,
+      },
       { key: "branch_list", label: "Branch List", type: "text", required: false, localized: false },
-      { key: "recurring_type", label: "Recurring Type", type: "text", required: false, localized: false },
+      {
+        key: "recurring_type",
+        label: "Recurring Type",
+        type: "text",
+        required: false,
+        localized: false,
+      },
       { key: "days", label: "Days", type: "text", required: false, localized: false },
       { key: "ai_trigger", label: "AI Trigger", type: "text", required: false, localized: false },
       { key: "ai_priority", label: "AI Priority", type: "text", required: false, localized: false },
@@ -1014,11 +1356,24 @@ async function main() {
     label: "Bot Flows",
     icon: "message-circle",
     fields: [
-      { key: "kind", label: "Kind", type: "select", required: true, localized: false, options: ["step", "button"] },
+      {
+        key: "kind",
+        label: "Kind",
+        type: "select",
+        required: true,
+        localized: false,
+        options: ["step", "button"],
+      },
       { key: "step_number", label: "Step #", type: "text", required: false, localized: false },
       { key: "trigger", label: "Trigger / Label", type: "text", required: true, localized: false },
       { key: "action", label: "Action", type: "textarea", required: true, localized: false },
-      { key: "data_required", label: "Data Required", type: "textarea", required: false, localized: false },
+      {
+        key: "data_required",
+        label: "Data Required",
+        type: "textarea",
+        required: false,
+        localized: false,
+      },
       { key: "context", label: "Context", type: "text", required: false, localized: false },
       { key: "escalation", label: "Escalation", type: "text", required: false, localized: false },
     ],
@@ -1029,13 +1384,49 @@ async function main() {
     label: "Update Routing",
     icon: "route",
     fields: [
-      { key: "raw_update_type", label: "Raw Update Type", type: "text", required: true, localized: false },
+      {
+        key: "raw_update_type",
+        label: "Raw Update Type",
+        type: "text",
+        required: true,
+        localized: false,
+      },
       { key: "ai_category", label: "AI Category", type: "text", required: false, localized: false },
-      { key: "default_template_id", label: "Default Template", type: "text", required: false, localized: false },
-      { key: "owner_function", label: "Owner Function", type: "text", required: false, localized: false },
-      { key: "needs_priority", label: "Needs Priority", type: "text", required: false, localized: false },
-      { key: "needs_operational_type", label: "Needs Op Type", type: "text", required: false, localized: false },
-      { key: "default_priority_tier", label: "Default Priority Tier", type: "text", required: false, localized: false },
+      {
+        key: "default_template_id",
+        label: "Default Template",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "owner_function",
+        label: "Owner Function",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "needs_priority",
+        label: "Needs Priority",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "needs_operational_type",
+        label: "Needs Op Type",
+        type: "text",
+        required: false,
+        localized: false,
+      },
+      {
+        key: "default_priority_tier",
+        label: "Default Priority Tier",
+        type: "text",
+        required: false,
+        localized: false,
+      },
     ],
   });
 
@@ -1044,9 +1435,27 @@ async function main() {
     label: "Priority Tiers",
     icon: "layers",
     fields: [
-      { key: "priority_tier", label: "Priority Tier", type: "text", required: true, localized: false },
-      { key: "priority_label", label: "Priority Label", type: "text", required: true, localized: false },
-      { key: "recommended_use", label: "Recommended Use", type: "textarea", required: false, localized: false },
+      {
+        key: "priority_tier",
+        label: "Priority Tier",
+        type: "text",
+        required: true,
+        localized: false,
+      },
+      {
+        key: "priority_label",
+        label: "Priority Label",
+        type: "text",
+        required: true,
+        localized: false,
+      },
+      {
+        key: "recommended_use",
+        label: "Recommended Use",
+        type: "textarea",
+        required: false,
+        localized: false,
+      },
     ],
   });
 
@@ -1056,17 +1465,40 @@ async function main() {
     icon: "users",
     fields: [
       { key: "branch_name", label: "Branch Name", type: "text", required: true, localized: false },
-      { key: "branch_group", label: "Branch Group", type: "text", required: true, localized: false },
+      {
+        key: "branch_group",
+        label: "Branch Group",
+        type: "text",
+        required: true,
+        localized: false,
+      },
     ],
   });
 
   // Pre-load existing entries so we can skip dups without relying on 500 heuristics.
   const allModules = [
-    "branches", "faqs", "response_templates", "escalation_rules", "policy_matrix",
-    "partners", "promotions", "intents", "booking-flows", "documents",
-    "change-requests", "priority-matrix", "risks", "announcements", "known-issues",
-    "data-gaps", "promotions-master", "enums", "bot-flows", "update-routing",
-    "priority-tiers", "branch-groups",
+    "branches",
+    "faqs",
+    "response_templates",
+    "escalation_rules",
+    "policy_matrix",
+    "partners",
+    "promotions",
+    "intents",
+    "booking-flows",
+    "documents",
+    "change-requests",
+    "priority-matrix",
+    "risks",
+    "announcements",
+    "known-issues",
+    "data-gaps",
+    "promotions-master",
+    "enums",
+    "bot-flows",
+    "update-routing",
+    "priority-tiers",
+    "branch-groups",
   ];
   for (const m of allModules) {
     await preloadExisting(m);
@@ -1106,7 +1538,9 @@ async function main() {
   console.log("\n========== SUMMARY ==========");
   for (const m of allModules) {
     const c = stats[m] ?? { imported: 0, skipped: 0, errored: 0 };
-    console.log(`${m.padEnd(22)} imported=${c.imported}  skipped=${c.skipped}  errored=${c.errored}`);
+    console.log(
+      `${m.padEnd(22)} imported=${c.imported}  skipped=${c.skipped}  errored=${c.errored}`,
+    );
   }
 }
 

@@ -37,7 +37,7 @@ echo "→ applying RLS policies"
 docker exec -i the-brain-postgres-1 psql -U app_migrate -d brain -q < infra/migrations/0001_rls.sql >/dev/null
 docker exec -i the-brain-postgres-1 psql -U app_migrate -d brain -q < infra/migrations/0002_admin_bypass.sql >/dev/null
 
-echo "→ seeding future-kid tenant"
+echo "→ seeding flare-fitness tenant"
 pnpm seed
 
 cat <<'BANNER'
@@ -50,7 +50,7 @@ cat <<'BANNER'
 ║   API:   http://localhost:3100                                 ║
 ║                                                                ║
 ║   Click "Enter Demo →" on the login screen.                    ║
-║   (Manual login: future-kid / sara@example.com / password1)    ║
+║   (Manual login: flare-fitness / bayan@example.com / password1)    ║
 ║                                                                ║
 ╚════════════════════════════════════════════════════════════════╝
 

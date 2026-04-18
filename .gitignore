@@ -13,3 +13,8 @@ coverage
 .idea
 .vscode
 *.swp
+
+# Local tooling / data (not for commit)
+.claude/
+*.xlsx
+apps/api/.embedded-pg/

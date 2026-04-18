@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../state/auth.js";
 import { useModules, type Module } from "../state/modules.js";
+import { useWorkspace, WORKSPACES } from "../state/workspace.js";
 import { Walkthrough } from "./Walkthrough.js";
 import { Icon } from "./Icon.js";
 import { CommandPalette } from "./CommandPalette.js";
@@ -58,6 +59,8 @@ export function Layout() {
   const tenant = useAuth((s) => s.tenant);
   const user = useAuth((s) => s.user);
   const signOut = useAuth((s) => s.signOut);
+  const activeWorkspace = useWorkspace((s) => s.active);
+  const setActiveWorkspace = useWorkspace((s) => s.setActive);
   const location = useLocation();
 
   // Close mobile drawer on navigation
@@ -148,8 +151,29 @@ export function Layout() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-2">
-        {showLabels && <div className="nav-section">Workspace</div>}
-        {!showLabels && <div className="h-2" />}
+        {showLabels ? (
+          <div className="px-2 pt-1 pb-2">
+            <div className="nav-section !px-0 !pb-1.5">Workspace</div>
+            <div className="flex items-center gap-1 p-0.5 rounded-apple bg-black/[0.04]">
+              {WORKSPACES.map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => setActiveWorkspace(w.id)}
+                  className={`flex-1 text-[12px] font-medium rounded-[6px] px-2 py-1 transition-colors ${
+                    activeWorkspace === w.id
+                      ? "bg-white text-apple-text shadow-sm"
+                      : "text-apple-secondary hover:text-apple-text"
+                  }`}
+                >
+                  {w.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="h-2" />
+        )}
         <div className="space-y-0.5">
           {workspaceLinks.map((l) => (
             <NavLink

@@ -38,7 +38,11 @@ export function Login() {
   }
 
   function enterDemo() {
-    submit(null, { tenantSlug: "future-kid", email: "sara@example.com", password: "password1" });
+    submit(null, {
+      tenantSlug: "flare-fitness",
+      email: "bayan@example.com",
+      password: "password1",
+    });
   }
 
   return (
@@ -63,7 +67,7 @@ export function Login() {
             {busy ? "Entering…" : "Enter demo"}
           </button>
           <p className="text-[12px] text-apple-tertiary text-center -mt-2">
-            Signs you in as Sara at Future Kid
+            Signs you in as Bayan at Flare Fitness
           </p>
 
           <div className="flex items-center gap-3 text-[11px] uppercase tracking-widest text-apple-tertiary">

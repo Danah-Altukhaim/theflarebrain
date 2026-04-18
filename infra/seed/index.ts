@@ -1,8 +1,8 @@
 /**
- * Seed dev fixtures: the Future Kid tenant with canonical modules, sample entries,
+ * Seed dev fixtures: the Flare Fitness tenant with canonical modules, sample entries,
  * and an API key.
  *
- * The `future-kid` tenant is seeded from the static snapshot at `api/_fixtures.ts`
+ * The `flare-fitness` tenant is seeded from the static snapshot at `api/_fixtures.ts`
  * so local Postgres ends up with the same content that the Vercel demo serves.
  *
  * Run: `pnpm seed`
@@ -20,15 +20,15 @@ type EntryStatus = "draft" | "scheduled" | "active" | "expired" | "archived";
 
 async function upsertTenantUsers(tenantId: string) {
   const editor = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId, email: "sara@example.com" } },
+    where: { tenantId_email: { tenantId, email: "bayan@example.com" } },
     create: {
       tenantId,
-      email: "sara@example.com",
-      name: "Sara (Editor)",
+      email: "bayan@example.com",
+      name: "Bayan (Editor)",
       role: "CLIENT_EDITOR",
       passwordHash: await bcrypt.hash("password1", 10),
     },
-    update: {},
+    update: { name: "Bayan (Editor)" },
   });
   const admin = await prisma.user.upsert({
     where: { tenantId_email: { tenantId, email: "admin@pairai.com" } },
@@ -63,11 +63,24 @@ async function issueApiKey(tenantId: string, slug: string) {
 
 async function seedFutureKid() {
   const tenant = await prisma.tenant.upsert({
-    where: { slug: "future-kid" },
-    create: { slug: "future-kid", name: "Future Kid", timezone: "Asia/Kuwait" },
-    update: {},
+    where: { slug: "flare-fitness" },
+    create: { slug: "flare-fitness", name: "Flare Fitness", timezone: "Asia/Kuwait" },
+    update: { name: "Flare Fitness" },
   });
   const { editor } = await upsertTenantUsers(tenant.id);
+
+  // Drop any modules under this tenant that are no longer in the fixtures.
+  const keepSlugs = MODULES.map((m) => m.slug);
+  const stale = await prisma.module.findMany({
+    where: { tenantId: tenant.id, slug: { notIn: keepSlugs } },
+    select: { id: true },
+  });
+  if (stale.length) {
+    const staleIds = stale.map((s) => s.id);
+    await prisma.entry.deleteMany({ where: { moduleId: { in: staleIds } } });
+    await prisma.module.deleteMany({ where: { id: { in: staleIds } } });
+    console.log(`Removed ${stale.length} stale modules + their entries`);
+  }
 
   const moduleIdBySlug = new Map<string, string>();
   for (const mod of MODULES) {
@@ -90,12 +103,25 @@ async function seedFutureKid() {
   }
 
   let entryCount = 0;
+  let orphanCount = 0;
   for (const [slug, entries] of Object.entries(ENTRIES_BY_SLUG)) {
     const moduleId = moduleIdBySlug.get(slug);
     if (!moduleId) {
       console.warn(`Skipping ${entries.length} entries: no module for slug "${slug}"`);
       continue;
     }
+    // Delete previously-seeded entries that are no longer in the fixtures.
+    // Only touches rows that carry an externalId (i.e. seeded) — user-created
+    // entries (externalId = null) are preserved.
+    const fixtureIds = entries.map((e) => e.id);
+    const orphans = await prisma.entry.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        moduleId,
+        externalId: { not: null, notIn: fixtureIds },
+      },
+    });
+    orphanCount += orphans.count;
     for (const entry of entries) {
       await prisma.entry.upsert({
         where: {
@@ -121,9 +147,10 @@ async function seedFutureKid() {
       entryCount++;
     }
   }
+  if (orphanCount) console.log(`Removed ${orphanCount} orphaned seeded entries`);
 
-  await issueApiKey(tenant.id, "future-kid");
-  console.log(`Seeded future-kid: ${MODULES.length} modules, ${entryCount} entries`);
+  await issueApiKey(tenant.id, "flare-fitness");
+  console.log(`Seeded flare-fitness: ${MODULES.length} modules, ${entryCount} entries`);
 }
 
 async function main() {

@@ -12,7 +12,13 @@ import {
 } from "../lib/escalationRule.js";
 
 type Entry = { id: string; data: Record<string, unknown>; status: string; updatedAt: string };
-type FieldDef = { key: string; type: string; label: string; options?: string[]; localized?: boolean };
+type FieldDef = {
+  key: string;
+  type: string;
+  label: string;
+  options?: string[];
+  localized?: boolean;
+};
 type ModuleInfo = { id: string; slug: string; label: string; fieldDefinitions?: FieldDef[] };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -104,7 +110,10 @@ function parseDaySelection(raw: string): boolean[] {
   let matched = false;
   s.split(/[,;\s]+/).forEach((tok) => {
     const idx = DAY_LOOKUP[tok];
-    if (idx != null) { out[idx] = true; matched = true; }
+    if (idx != null) {
+      out[idx] = true;
+      matched = true;
+    }
   });
   return matched ? out : [false, false, false, false, false, false, false];
 }
@@ -113,10 +122,15 @@ function formatDaySelection(sel: boolean[]): string {
   if (sel.every((v) => v)) return "Daily";
   if (sel.every((v) => !v)) return "";
   const idxs: number[] = [];
-  sel.forEach((v, i) => { if (v) idxs.push(i); });
+  sel.forEach((v, i) => {
+    if (v) idxs.push(i);
+  });
   let contiguous = true;
   for (let k = 1; k < idxs.length; k++) {
-    if (idxs[k]! - idxs[k - 1]! !== 1) { contiguous = false; break; }
+    if (idxs[k]! - idxs[k - 1]! !== 1) {
+      contiguous = false;
+      break;
+    }
   }
   if (contiguous && idxs.length >= 2) {
     return `${DAY_LABELS[idxs[0]!]}-${DAY_LABELS[idxs[idxs.length - 1]!]}`;
@@ -138,7 +152,10 @@ const TIME_OPTIONS: string[] = (() => {
 })();
 
 function normalizeTimeToken(t: string): string {
-  const m = t.trim().toUpperCase().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  const m = t
+    .trim()
+    .toUpperCase()
+    .match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
   if (!m) return "";
   const h = parseInt(m[1]!, 10);
   const mm = m[2] ? parseInt(m[2]!, 10) : 0;
@@ -154,7 +171,9 @@ function parseShifts(raw: string): Array<[string, string]> {
   const shifts: Array<[string, string]> = [];
   const parts = raw.split(/\s*;\s*/).filter(Boolean);
   for (const p of parts) {
-    const m = p.match(/^\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM))\s*[-\u2013]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM))\s*$/i);
+    const m = p.match(
+      /^\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM))\s*[-\u2013]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM))\s*$/i,
+    );
     if (m) {
       shifts.push([normalizeTimeToken(m[1]!), normalizeTimeToken(m[2]!)]);
     } else {
@@ -165,9 +184,7 @@ function parseShifts(raw: string): Array<[string, string]> {
 }
 
 function formatShifts(shifts: Array<[string, string]>): string {
-  return shifts
-    .map(([a, b]) => `${a}-${b}`)
-    .join("; ");
+  return shifts.map(([a, b]) => `${a}-${b}`).join("; ");
 }
 
 function parseHoursValue(raw: unknown): HoursEntry[] {
@@ -176,13 +193,155 @@ function parseHoursValue(raw: unknown): HoursEntry[] {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed as HoursEntry[];
-    } catch { /* fall through */ }
-    return raw.split(/\r?\n|;\s*/).filter(Boolean).map((line) => {
-      const m = line.match(/^(.+?):\s*(.+)$/);
-      return m ? { days: m[1]!.trim(), time: m[2]!.trim() } : { days: line.trim(), time: "" };
-    });
+    } catch {
+      /* fall through */
+    }
+    return raw
+      .split(/\r?\n|;\s*/)
+      .filter(Boolean)
+      .map((line) => {
+        const m = line.match(/^(.+?):\s*(.+)$/);
+        return m ? { days: m[1]!.trim(), time: m[2]!.trim() } : { days: line.trim(), time: "" };
+      });
   }
   return [];
+}
+
+type FileValue = { mediaId: string | null; filename: string };
+
+function parseFileValue(raw: unknown): FileValue | null {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const filename = typeof o.filename === "string" ? o.filename : "";
+    const mediaId = typeof o.mediaId === "string" ? o.mediaId : null;
+    if (!filename && !mediaId) return null;
+    return { filename, mediaId };
+  }
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parseFileValue(parsed);
+      }
+    } catch {
+      /* fall through */
+    }
+    return { mediaId: null, filename: raw };
+  }
+  return null;
+}
+
+function FileFieldInput({
+  value,
+  onChange,
+}: {
+  value: FileValue | null;
+  onChange: (v: FileValue | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFiles(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setError("Only PDF files are allowed");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File must be ≤10MB");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const data = await api<{ id: string; filename: string }>("/api/v1/media/upload", {
+        method: "POST",
+        body: fd,
+      });
+      onChange({ mediaId: data.id, filename: data.filename });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  async function openExisting() {
+    if (!value?.mediaId) return;
+    try {
+      const data = await api<{ url: string }>(`/api/v1/media/${value.mediaId}/url`);
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not open file");
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(ev) => handleFiles(ev.target.files)}
+      />
+      {value?.filename ? (
+        <div className="flex items-center gap-2 rounded-apple border border-apple-separator-light bg-[#FAFAFA] px-3 py-2">
+          <Icon name="file" size={14} />
+          {value.mediaId ? (
+            <button
+              type="button"
+              onClick={openExisting}
+              className="flex-1 min-w-0 text-left text-[13px] text-pair hover:underline truncate"
+              title={value.filename}
+            >
+              {value.filename}
+            </button>
+          ) : (
+            <span
+              className="flex-1 min-w-0 text-[13px] text-apple-text truncate"
+              title={value.filename}
+            >
+              {value.filename}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="btn-ghost !px-2 !py-1 text-[12px]"
+          >
+            {busy ? "Uploading…" : "Replace"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            disabled={busy}
+            className="btn-ghost !px-2 !py-1 text-[12px] text-apple-tertiary hover:text-red-500"
+            aria-label="Remove file"
+          >
+            Remove
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          className="btn-ghost w-full !py-2 text-[13px] border border-dashed border-apple-separator-light"
+        >
+          {busy ? "Uploading…" : "+ Upload PDF"}
+        </button>
+      )}
+      {error && <div className="text-[12px] text-red-500">{error}</div>}
+    </div>
+  );
 }
 
 function HoursDisplay({ value }: { value: unknown }) {
@@ -224,7 +383,8 @@ function humanizeKey(k: string): string {
 // Special whitespace characters that survive `whitespace-pre-line` and produce
 // the visible "gap" artifacts: NBSP, narrow NBSP, figure space, em/en spaces,
 // thin space, hair space, ideographic space, zero-width space/joiner, BOM, tab.
-const SPECIAL_SPACE_RE = /[\u00A0\u202F\u2007\u2003\u2002\u2009\u200A\u3000\u200B\u200C\u200D\uFEFF\t]/g;
+const SPECIAL_SPACE_RE =
+  /[\u00A0\u202F\u2007\u2003\u2002\u2009\u200A\u3000\u200B\u200C\u200D\uFEFF\t]/g;
 
 function normalizeWhitespace(s: string): string {
   return s
@@ -411,8 +571,16 @@ function BilingualText({
   const needAr = !arClean && Boolean(enClean);
   const [enRequested, setEnRequested] = useState(false);
   const [arRequested, setArRequested] = useState(false);
-  const enAuto = useAutoTranslation(needEn && enRequested ? arClean : null, "en", needEn && enRequested);
-  const arAuto = useAutoTranslation(needAr && arRequested ? enClean : null, "ar", needAr && arRequested);
+  const enAuto = useAutoTranslation(
+    needEn && enRequested ? arClean : null,
+    "en",
+    needEn && enRequested,
+  );
+  const arAuto = useAutoTranslation(
+    needAr && arRequested ? enClean : null,
+    "ar",
+    needAr && arRequested,
+  );
   const englishText = enClean || enAuto.value;
   const arabicText = arClean || arAuto.value;
   const englishIsAuto = needEn && Boolean(enAuto.value);
@@ -462,9 +630,7 @@ function BilingualText({
       </div>
       <div>
         <div className="w-full flex items-center justify-end gap-1.5 text-[10px] uppercase tracking-[0.08em] font-semibold text-apple-tertiary mb-1.5">
-          {arabicIsAuto && (
-            <span className="badge badge-gray !text-[9px] !px-1.5 !py-0">auto</span>
-          )}
+          {arabicIsAuto && <span className="badge badge-gray !text-[9px] !px-1.5 !py-0">auto</span>}
           <span>Arabic</span>
         </div>
         {needAr && !arRequested ? (
@@ -507,15 +673,39 @@ function CompactBilingual({ en, ar }: { en: string; ar: string }) {
   const arClean = stripIcons(ar);
   if (!enClean && !arClean) return null;
   if (!arClean) {
-    return <div dir="ltr" className="text-[13px] leading-relaxed text-apple-text whitespace-pre-line break-words line-clamp-3 text-left">{enClean}</div>;
+    return (
+      <div
+        dir="ltr"
+        className="text-[13px] leading-relaxed text-apple-text whitespace-pre-line break-words line-clamp-3 text-left"
+      >
+        {enClean}
+      </div>
+    );
   }
   if (!enClean) {
-    return <div dir="rtl" className="text-[13px] leading-relaxed text-apple-text whitespace-pre-line break-words line-clamp-3 font-arabic text-right">{arClean}</div>;
+    return (
+      <div
+        dir="rtl"
+        className="text-[13px] leading-relaxed text-apple-text whitespace-pre-line break-words line-clamp-3 font-arabic text-right"
+      >
+        {arClean}
+      </div>
+    );
   }
   return (
     <div>
-      <div dir="ltr" className="text-[13px] leading-relaxed text-apple-text whitespace-pre-line break-words line-clamp-2 text-left">{enClean}</div>
-      <div dir="rtl" className="text-[12px] leading-relaxed text-apple-secondary whitespace-pre-line break-words line-clamp-2 font-arabic text-right mt-1">{arClean}</div>
+      <div
+        dir="ltr"
+        className="text-[13px] leading-relaxed text-apple-text whitespace-pre-line break-words line-clamp-2 text-left"
+      >
+        {enClean}
+      </div>
+      <div
+        dir="rtl"
+        className="text-[12px] leading-relaxed text-apple-secondary whitespace-pre-line break-words line-clamp-2 font-arabic text-right mt-1"
+      >
+        {arClean}
+      </div>
     </div>
   );
 }
@@ -527,7 +717,11 @@ function pickField(data: Record<string, unknown>, candidates: readonly string[])
   }
   for (const k of Object.keys(data)) {
     const lower = k.toLowerCase();
-    if (candidates.some((c) => lower === c || lower.startsWith(c + "_") || lower === c.replace(/_/g, ""))) {
+    if (
+      candidates.some(
+        (c) => lower === c || lower.startsWith(c + "_") || lower === c.replace(/_/g, ""),
+      )
+    ) {
       const v = data[k];
       if (typeof v === "string" && v.trim()) return v;
     }
@@ -585,34 +779,37 @@ export function ModulePage() {
   }
 
   async function deleteEntry(e: Entry) {
-    const label =
-      pickField(e.data as Record<string, unknown>, TITLE_KEYS) || "this entry";
-    const ok = window.confirm(
-      `Delete "${label}"? This action cannot be undone.`,
-    );
+    const label = pickField(e.data as Record<string, unknown>, TITLE_KEYS) || "this entry";
+    const ok = window.confirm(`Delete "${label}"? This action cannot be undone.`);
     if (!ok) return;
     try {
       await api(`/api/v1/entries/${slug}/${e.id}`, { method: "DELETE" });
       markEntryDeleted(slug, e.id);
       setEntries((prev) => prev.filter((row) => row.id !== e.id));
     } catch (err) {
-      window.alert(
-        `Failed to delete: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      window.alert(`Failed to delete: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   function createNewEntry() {
     const emptyData: Record<string, unknown> = {};
     const now = new Date().toISOString();
+    const typeByKey = Object.fromEntries((fieldDefs ?? []).map((f) => [f.key, f.type]));
     if (entries[0] && slug !== "escalation_rules") {
       const ref = entries[0].data as Record<string, unknown>;
       for (const k of Object.keys(ref)) {
         const sample = ref[k];
         const sampleStr = typeof sample === "string" ? sample : "";
-        if (DATE_KEY_RE.test(k) || ISO_DATE_RE.test(sampleStr)) {
+        if (typeByKey[k] === "file") {
+          emptyData[k] = null;
+        } else if (DATE_KEY_RE.test(k) || ISO_DATE_RE.test(sampleStr)) {
           emptyData[k] = now;
-        } else if (EN_RE.test(k) || AR_RE.test(k) || MSG_EN_KEYS.includes(k) || MSG_AR_KEYS.includes(k)) {
+        } else if (
+          EN_RE.test(k) ||
+          AR_RE.test(k) ||
+          MSG_EN_KEYS.includes(k) ||
+          MSG_AR_KEYS.includes(k)
+        ) {
           emptyData[k] = "";
         } else if (TITLE_KEYS.includes(k)) {
           emptyData[k] = "";
@@ -671,9 +868,7 @@ export function ModulePage() {
 
   const deleteCategory = useCallback(
     async (name: string): Promise<boolean> => {
-      const affected = entries.filter(
-        (e) => (e.data as Record<string, unknown>).category === name,
-      );
+      const affected = entries.filter((e) => (e.data as Record<string, unknown>).category === name);
       const others = affected.filter((e) => e.id !== editing?.id);
       const ok = window.confirm(
         others.length > 0
@@ -714,8 +909,18 @@ export function ModulePage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return entries;
+    const haystack = (v: unknown): string => {
+      if (v == null) return "";
+      if (typeof v === "object") {
+        if ("filename" in (v as object)) {
+          return String((v as FileValue).filename ?? "");
+        }
+        return JSON.stringify(v);
+      }
+      return String(v);
+    };
     return entries.filter((e) =>
-      Object.values(e.data).some((v) => String(v ?? "").toLowerCase().includes(q)),
+      Object.values(e.data).some((v) => haystack(v).toLowerCase().includes(q)),
     );
   }, [entries, query]);
 
@@ -805,10 +1010,11 @@ export function ModulePage() {
             slug={slug}
             entry={editing}
             isNew={isNewEntry}
-            channelOptions={
-              selectOptions.channel ?? ["human_chat", "whatsapp"]
-            }
-            onClose={() => { setEditing(null); setIsNewEntry(false); }}
+            channelOptions={selectOptions.channel ?? ["human_chat", "whatsapp"]}
+            onClose={() => {
+              setEditing(null);
+              setIsNewEntry(false);
+            }}
             onSaved={() => {
               setEditing(null);
               setIsNewEntry(false);
@@ -825,7 +1031,10 @@ export function ModulePage() {
             fieldDefinitions={fieldDefs}
             categoryOptions={categoryOptions}
             onDeleteCategory={deleteCategory}
-            onClose={() => { setEditing(null); setIsNewEntry(false); }}
+            onClose={() => {
+              setEditing(null);
+              setIsNewEntry(false);
+            }}
             onSaved={() => {
               setEditing(null);
               setIsNewEntry(false);
@@ -948,10 +1157,7 @@ const HIDDEN_TABLE_KEYS = new Set([
   "category",
 ]);
 
-function deriveColumns(
-  entries: Entry[],
-  langGroups: LangGroup[],
-): Column[] {
+function deriveColumns(entries: Entry[], langGroups: LangGroup[]): Column[] {
   const cols: Column[] = [];
   const consumed = new Set<string>();
 
@@ -980,10 +1186,7 @@ function deriveColumns(
       const sample = samples[0];
       let shape: Column["shape"] = "text";
       if (samples.length > 0 && samples.every(isBoolish)) shape = "bool";
-      else if (
-        DATE_KEY_RE.test(g.key) ||
-        (typeof sample === "string" && ISO_DATE_RE.test(sample))
-      )
+      else if (DATE_KEY_RE.test(g.key) || (typeof sample === "string" && ISO_DATE_RE.test(sample)))
         shape = "date";
       else if (HOURS_KEY_RE.test(g.key)) shape = "hours";
       else if (typeof sample === "string" && /^https?:\/\//.test(sample)) shape = "url";
@@ -991,9 +1194,7 @@ function deriveColumns(
         samples.length > 0 &&
         samples.every(
           (v) =>
-            typeof v === "string" &&
-            (v as string).length <= 24 &&
-            !(v as string).includes("\n"),
+            typeof v === "string" && (v as string).length <= 24 && !(v as string).includes("\n"),
         )
       )
         shape = "id";
@@ -1016,9 +1217,7 @@ function deriveColumns(
 
 function BoolPill({ v }: { v: unknown }) {
   const t = boolValue(v);
-  return (
-    <span className={`badge ${t ? "badge-green" : "badge-gray"}`}>{t ? "Yes" : "No"}</span>
-  );
+  return <span className={`badge ${t ? "badge-green" : "badge-gray"}`}>{t ? "Yes" : "No"}</span>;
 }
 
 function BilingualCell({ enRaw, arRaw }: { enRaw: string; arRaw: string }) {
@@ -1043,6 +1242,41 @@ function BilingualCell({ enRaw, arRaw }: { enRaw: string; arRaw: string }) {
   );
 }
 
+function FileCell({ value }: { value: FileValue | null }) {
+  if (!value || (!value.filename && !value.mediaId)) {
+    return <span className="text-apple-tertiary">-</span>;
+  }
+  if (!value.mediaId) {
+    return (
+      <span
+        className="text-[13px] text-apple-text truncate inline-block max-w-[220px]"
+        title={value.filename}
+      >
+        {value.filename}
+      </span>
+    );
+  }
+  const open = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const data = await api<{ url: string }>(`/api/v1/media/${value.mediaId}/url`);
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch {
+      /* ignore */
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={open}
+      className="text-[13px] text-pair hover:underline truncate inline-block max-w-[220px] text-left"
+      title={value.filename}
+    >
+      {value.filename || "Open file"}
+    </button>
+  );
+}
+
 function ShapeCell({ col, d }: { col: Column; d: Record<string, unknown> }) {
   if (col.shape === "bilingual") {
     const en = col.enKey ? String(d[col.enKey] ?? "") : "";
@@ -1052,6 +1286,9 @@ function ShapeCell({ col, d }: { col: Column; d: Record<string, unknown> }) {
   const raw = col.dataKey ? d[col.dataKey] : undefined;
   if (raw === undefined || raw === null || raw === "") {
     return <span className="text-apple-tertiary">-</span>;
+  }
+  if (raw && typeof raw === "object" && !Array.isArray(raw) && "filename" in (raw as object)) {
+    return <FileCell value={parseFileValue(raw)} />;
   }
   const s = String(raw);
   switch (col.shape) {
@@ -1064,7 +1301,11 @@ function ShapeCell({ col, d }: { col: Column; d: Record<string, unknown> }) {
         </span>
       );
     case "url": {
-      const short = s.replace(/^https?:\/\/(www\.)?/, "").split("/").slice(0, 2).join("/");
+      const short = s
+        .replace(/^https?:\/\/(www\.)?/, "")
+        .split("/")
+        .slice(0, 2)
+        .join("/");
       return (
         <a
           href={s}
@@ -1082,7 +1323,10 @@ function ShapeCell({ col, d }: { col: Column; d: Record<string, unknown> }) {
       const entries = parseHoursValue(raw);
       if (entries.length === 0) return <span className="text-apple-tertiary">-</span>;
       return (
-        <div className="text-[13px] text-apple-text whitespace-nowrap" title={entries.map((e) => `${e.days}: ${e.time}`).join("\n")}>
+        <div
+          className="text-[13px] text-apple-text whitespace-nowrap"
+          title={entries.map((e) => `${e.days}: ${e.time}`).join("\n")}
+        >
           {entries.map((entry, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="font-medium">{entry.days}</span>
@@ -1129,10 +1373,7 @@ function EntryTable({
   langGroups: LangGroup[];
   onEdit: (e: Entry) => void;
 }) {
-  const cols = useMemo(
-    () => deriveColumns(entries, langGroups),
-    [entries, langGroups],
-  );
+  const cols = useMemo(() => deriveColumns(entries, langGroups), [entries, langGroups]);
 
   if (!loading && entries.length === 0) {
     return (
@@ -1210,9 +1451,7 @@ function EntryTable({
                     </td>
                   ))}
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-right">
-                    <span className={`badge ${badgeFor(e.status)}`}>
-                      {e.status || "active"}
-                    </span>
+                    <span className={`badge ${badgeFor(e.status)}`}>{e.status || "active"}</span>
                   </td>
                 </tr>
               );
@@ -1241,13 +1480,16 @@ function CollapsibleTextarea({
     node.style.height = "auto";
     node.style.height = node.scrollHeight + 2 + "px";
   }, []);
-  const textareaRef = useCallback((node: HTMLTextAreaElement | null) => {
-    if (node && expanded) {
-      autoSize(node);
-      node.focus();
-      node.setSelectionRange(node.value.length, node.value.length);
-    }
-  }, [expanded, autoSize]);
+  const textareaRef = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      if (node && expanded) {
+        autoSize(node);
+        node.focus();
+        node.setSelectionRange(node.value.length, node.value.length);
+      }
+    },
+    [expanded, autoSize],
+  );
 
   const preview = value.length > 120 ? value.slice(0, 120) + "..." : value;
   const lines = value.split("\n");
@@ -1273,7 +1515,9 @@ function CollapsibleTextarea({
         dir={isAr ? "rtl" : "ltr"}
         className={`input-apple text-left cursor-pointer hover:border-[#D0D0D0] group w-full ${isAr ? "font-arabic !text-right" : ""}`}
       >
-        <div className={`text-[13px] leading-relaxed text-apple-text line-clamp-2 whitespace-pre-line ${isAr ? "text-right" : "text-left"}`}>
+        <div
+          className={`text-[13px] leading-relaxed text-apple-text line-clamp-2 whitespace-pre-line ${isAr ? "text-right" : "text-left"}`}
+        >
           {preview}
         </div>
         <div className="text-[11px] font-medium text-pair mt-1.5 group-hover:underline">
@@ -1353,9 +1597,7 @@ function CategoryCombobox({
   const filtered = trimmed
     ? allOptions.filter((o) => o.toLowerCase().includes(trimmed.toLowerCase()))
     : allOptions;
-  const canAdd =
-    !!trimmed &&
-    !allOptions.some((o) => o.toLowerCase() === trimmed.toLowerCase());
+  const canAdd = !!trimmed && !allOptions.some((o) => o.toLowerCase() === trimmed.toLowerCase());
 
   function toggleOpen() {
     if (!open && buttonRef.current) {
@@ -1399,7 +1641,9 @@ function CategoryCombobox({
         <span className={`truncate ${value ? "text-apple-text" : "text-apple-tertiary"}`}>
           {value || "Select or add a category..."}
         </span>
-        <span className={`shrink-0 text-apple-tertiary transition-transform ${open ? "rotate-180" : ""}`}>
+        <span
+          className={`shrink-0 text-apple-tertiary transition-transform ${open ? "rotate-180" : ""}`}
+        >
           <Icon name="chevron-down" size={14} />
         </span>
       </button>
@@ -1481,7 +1725,13 @@ function CategoryCombobox({
                     title={`Delete "${opt}"`}
                     aria-label={`Delete category ${opt}`}
                   >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -1537,16 +1787,26 @@ function EditEntryModal({
     }
     return (k: string) => map[k] ?? humanizeKey(k);
   }, [fieldDefinitions]);
+  const fieldTypeMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const f of fieldDefinitions ?? []) m[f.key] = f.type;
+    return m;
+  }, [fieldDefinitions]);
   const [draft, setDraft] = useState<Record<string, unknown>>(() =>
-    Object.fromEntries(initialKeys.map((k) => {
-      const rawVal = entry.data[k];
-      if (HOURS_KEY_RE.test(k)) {
-        return [k, parseHoursValue(rawVal)];
-      }
-      const raw = String(rawVal ?? "");
-      if (DATE_KEY_RE.test(k) || ISO_DATE_RE.test(raw)) return [k, raw];
-      return [k, stripIcons(raw)];
-    })),
+    Object.fromEntries(
+      initialKeys.map((k) => {
+        const rawVal = entry.data[k];
+        if (HOURS_KEY_RE.test(k)) {
+          return [k, parseHoursValue(rawVal)];
+        }
+        if (fieldTypeMap[k] === "file") {
+          return [k, parseFileValue(rawVal)];
+        }
+        const raw = String(rawVal ?? "");
+        if (DATE_KEY_RE.test(k) || ISO_DATE_RE.test(raw)) return [k, raw];
+        return [k, stripIcons(raw)];
+      }),
+    ),
   );
   const [active, setActive] = useState<boolean>(
     (entry.status ?? "active").toLowerCase() !== "inactive",
@@ -1565,6 +1825,10 @@ function EditEntryModal({
       if (HOURS_KEY_RE.test(k)) {
         const entries = (draft[k] as HoursEntry[] | undefined) ?? [];
         data[k] = entries.filter((e) => e.days.trim() || e.time.trim());
+        continue;
+      }
+      if (fieldTypeMap[k] === "file") {
+        data[k] = draft[k] ?? null;
         continue;
       }
       const v = String(draft[k] ?? "");
@@ -1608,7 +1872,9 @@ function EditEntryModal({
       >
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-apple-separator-light">
           <div className="min-w-0 flex-1 mr-3">
-            <div className="text-[15px] font-semibold text-apple-text">{isNew ? "New entry" : "Edit entry"}</div>
+            <div className="text-[15px] font-semibold text-apple-text">
+              {isNew ? "New entry" : "Edit entry"}
+            </div>
             {!isNew && (
               <button
                 type="button"
@@ -1633,9 +1899,7 @@ function EditEntryModal({
                   {active ? "Active" : "Inactive"}
                 </div>
                 <div className="text-[11px] text-apple-tertiary">
-                  {active
-                    ? "Visible to customers"
-                    : "Hidden from customers until reactivated"}
+                  {active ? "Visible to customers" : "Hidden from customers until reactivated"}
                 </div>
               </div>
               <button
@@ -1683,14 +1947,29 @@ function EditEntryModal({
               }
               const opts = selectOptions?.[key];
 
+              if (fieldTypeMap[key] === "file") {
+                const fileVal = parseFileValue(rawVal);
+                return (
+                  <div key={key}>
+                    <label className="label">{getLabel(key)}</label>
+                    <FileFieldInput
+                      value={fileVal}
+                      onChange={(v) => setDraft({ ...draft, [key]: v })}
+                    />
+                  </div>
+                );
+              }
+
               if (HOURS_KEY_RE.test(key)) {
                 const entries = (rawVal as HoursEntry[] | undefined) ?? [];
                 const updateEntry = (idx: number, field: "days" | "time", value: string) => {
-                  const updated = entries.map((e, i) => i === idx ? { ...e, [field]: value } : e);
+                  const updated = entries.map((e, i) => (i === idx ? { ...e, [field]: value } : e));
                   setDraft({ ...draft, [key]: updated });
                 };
-                const addEntry = () => setDraft({ ...draft, [key]: [...entries, { days: "", time: "" }] });
-                const removeEntry = (idx: number) => setDraft({ ...draft, [key]: entries.filter((_, i) => i !== idx) });
+                const addEntry = () =>
+                  setDraft({ ...draft, [key]: [...entries, { days: "", time: "" }] });
+                const removeEntry = (idx: number) =>
+                  setDraft({ ...draft, [key]: entries.filter((_, i) => i !== idx) });
                 return (
                   <div key={key}>
                     <label className="label">{getLabel(key)}</label>
@@ -1710,7 +1989,7 @@ function EditEntryModal({
                         const updateShift = (shiftIdx: number, pos: 0 | 1, value: string) => {
                           const next: Array<[string, string]> = shifts.map((s, i) =>
                             i === shiftIdx
-                              ? (pos === 0 ? [value, s[1]] : [s[0], value]) as [string, string]
+                              ? ((pos === 0 ? [value, s[1]] : [s[0], value]) as [string, string])
                               : s,
                           );
                           updateEntry(idx, "time", formatShifts(next));
@@ -1724,7 +2003,10 @@ function EditEntryModal({
                           updateEntry(idx, "time", formatShifts(next.length ? next : [["", ""]]));
                         };
                         return (
-                          <div key={idx} className="rounded-apple border border-apple-separator-light bg-[#FAFAFA] p-2.5">
+                          <div
+                            key={idx}
+                            className="rounded-apple border border-apple-separator-light bg-[#FAFAFA] p-2.5"
+                          >
                             <div className="flex items-start gap-2">
                               <div className="flex-1 min-w-0 space-y-2">
                                 <div className="flex items-center gap-1 flex-wrap">
@@ -1768,10 +2050,14 @@ function EditEntryModal({
                                       >
                                         <option value="">Opens</option>
                                         {TIME_OPTIONS.map((t) => (
-                                          <option key={t} value={t}>{t}</option>
+                                          <option key={t} value={t}>
+                                            {t}
+                                          </option>
                                         ))}
                                       </select>
-                                      <span className="text-[11px] text-apple-tertiary shrink-0">to</span>
+                                      <span className="text-[11px] text-apple-tertiary shrink-0">
+                                        to
+                                      </span>
                                       <select
                                         className="input-apple flex-1 min-w-0 text-[13px] cursor-pointer !py-1.5"
                                         value={close}
@@ -1780,7 +2066,9 @@ function EditEntryModal({
                                       >
                                         <option value="">Closes</option>
                                         {TIME_OPTIONS.map((t) => (
-                                          <option key={t} value={t}>{t}</option>
+                                          <option key={t} value={t}>
+                                            {t}
+                                          </option>
                                         ))}
                                       </select>
                                       {shifts.length > 1 && (
@@ -1790,8 +2078,18 @@ function EditEntryModal({
                                           className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-apple-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
                                           title="Remove shift"
                                         >
-                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              d="M6 18L18 6M6 6l12 12"
+                                            />
                                           </svg>
                                         </button>
                                       )}
@@ -1812,8 +2110,18 @@ function EditEntryModal({
                                 className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-apple-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
                                 title="Remove row"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
                                 </svg>
                               </button>
                             </div>
@@ -1847,7 +2155,9 @@ function EditEntryModal({
                     >
                       {!opts.includes(val) && <option value={val}>{val || "Select..."}</option>}
                       {opts.map((o) => (
-                        <option key={o} value={o}>{o}</option>
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
                       ))}
                     </select>
                   ) : isLong ? (
@@ -1879,7 +2189,7 @@ function EditEntryModal({
               const isHoursField = HOURS_KEY_RE.test(k);
               const isDate = !isHoursField && (DATE_KEY_RE.test(k) || ISO_DATE_RE.test(vStr));
               const isShort = !isDate && !isHoursField && isShortField(k);
-              const curFieldType = isDate ? "date" : (isShort ? "short" : "long");
+              const curFieldType = isDate ? "date" : isShort ? "short" : "long";
 
               if (prevFieldType && prevFieldType !== curFieldType) {
                 elements.push(
@@ -1899,8 +2209,16 @@ function EditEntryModal({
                 }
                 dateGroup.sort((a, b) => {
                   const rank = (key: string) => {
-                    if (START_KEYS.includes(key) || /(^|_)(start|starts|publish|begin|from)(_|$)/i.test(key)) return 0;
-                    if (END_KEYS.includes(key) || /(^|_)(end|ends|expires?|until|to)(_|$)/i.test(key)) return 2;
+                    if (
+                      START_KEYS.includes(key) ||
+                      /(^|_)(start|starts|publish|begin|from)(_|$)/i.test(key)
+                    )
+                      return 0;
+                    if (
+                      END_KEYS.includes(key) ||
+                      /(^|_)(end|ends|expires?|until|to)(_|$)/i.test(key)
+                    )
+                      return 2;
                     return 1;
                   };
                   return rank(a) - rank(b);
@@ -1917,8 +2235,12 @@ function EditEntryModal({
                           <DatePicker
                             value={dateVal}
                             timeValue={timeVal}
-                            onChange={(v) => setDraft({ ...draft, [dk]: combineDateTime(v, timeVal) })}
-                            onTimeChange={(v) => setDraft({ ...draft, [dk]: combineDateTime(dateVal, v) })}
+                            onChange={(v) =>
+                              setDraft({ ...draft, [dk]: combineDateTime(v, timeVal) })
+                            }
+                            onTimeChange={(v) =>
+                              setDraft({ ...draft, [dk]: combineDateTime(dateVal, v) })
+                            }
                           />
                         </div>
                       );
@@ -1938,7 +2260,10 @@ function EditEntryModal({
                   for (let j = 0; j < shortGroup.length; j += 2) {
                     if (j + 1 < shortGroup.length) {
                       elements.push(
-                        <div key={`pair-${shortGroup[j]}-${shortGroup[j + 1]}`} className="grid grid-cols-2 gap-3">
+                        <div
+                          key={`pair-${shortGroup[j]}-${shortGroup[j + 1]}`}
+                          className="grid grid-cols-2 gap-3"
+                        >
                           {renderField(shortGroup[j]!)}
                           {renderField(shortGroup[j + 1]!)}
                         </div>,
@@ -1965,7 +2290,10 @@ function EditEntryModal({
           <div className="flex items-center gap-3">
             {!isNew && (
               <button
-                onClick={() => { onDelete(); onClose(); }}
+                onClick={() => {
+                  onDelete();
+                  onClose();
+                }}
                 className="btn-ghost !px-3 !py-2 !text-[13px] text-apple-red hover:!bg-red-50 hover:!text-red-700"
                 disabled={busy}
                 title="Delete entry"
@@ -2109,14 +2437,21 @@ function TriggerChipInput({
   onChange: (next: string) => void;
 }) {
   const chips = useMemo(
-    () => value.split(/,\s*/).map((s) => s.trim()).filter(Boolean),
+    () =>
+      value
+        .split(/,\s*/)
+        .map((s) => s.trim())
+        .filter(Boolean),
     [value],
   );
   const [draft, setDraft] = useState("");
 
   const write = (next: string[]) => onChange(next.join(", "));
   const commit = (raw: string) => {
-    const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const parts = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (!parts.length) {
       setDraft("");
       return;
@@ -2290,11 +2625,7 @@ function EscalationRuleEditModal({
               </button>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="btn-ghost !px-2 !py-1.5 shrink-0"
-            aria-label="Close"
-          >
+          <button onClick={onClose} className="btn-ghost !px-2 !py-1.5 shrink-0" aria-label="Close">
             <Icon name="close" size={15} />
           </button>
         </div>
@@ -2342,10 +2673,7 @@ function EscalationRuleEditModal({
           </div>
           <div>
             <label className="label">Triggers</label>
-            <TriggerChipInput
-              value={form.keywords}
-              onChange={(v) => set("keywords", v)}
-            />
+            <TriggerChipInput value={form.keywords} onChange={(v) => set("keywords", v)} />
           </div>
           <div className="text-[13px] text-apple-secondary">
             All rules escalate to <span className="font-medium text-apple-text">CS Team</span>

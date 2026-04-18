@@ -88,7 +88,11 @@ const routes: FastifyPluginAsync = async (app) => {
       at: Date.now(),
     });
 
-    if (!result.ok) return { success: false, error: { code: "PARSE_FAILED", message: result.error, status: 422 } };
+    if (!result.ok)
+      return {
+        success: false,
+        error: { code: "PARSE_FAILED", message: result.error, status: 422 },
+      };
 
     // For CREATE / SCHEDULE / DUPLICATE: auto-translate localized fields with empty counterpart.
     const enriched = await autoTranslateAction(result.action, modules);
@@ -122,29 +126,66 @@ const routes: FastifyPluginAsync = async (app) => {
       switch (action.action) {
         case "CREATE": {
           const entry = await createEntry(tx, {
-            tenantId, moduleId: mod.id, data: action.fields, userId,
+            tenantId,
+            moduleId: mod.id,
+            data: action.fields,
+            userId,
           });
-          await audit(tx, { tenantId, userId, action: "create", entityType: "entry", entityId: entry.id, diff: action.fields });
+          await audit(tx, {
+            tenantId,
+            userId,
+            action: "create",
+            entityType: "entry",
+            entityId: entry.id,
+            diff: action.fields,
+          });
           await activity(tx, { tenantId, userId, action: "create", moduleSlug: mod.slug });
           return { entry };
         }
         case "SCHEDULE": {
           const entry = await createEntry(tx, {
-            tenantId, moduleId: mod.id, data: action.fields, userId,
-            status: "scheduled", publishAt: new Date(action.publish_at),
+            tenantId,
+            moduleId: mod.id,
+            data: action.fields,
+            userId,
+            status: "scheduled",
+            publishAt: new Date(action.publish_at),
           });
           await tx.scheduledJob.create({
-            data: { tenantId, entryId: entry.id, action: "publish", scheduledAt: new Date(action.publish_at) },
+            data: {
+              tenantId,
+              entryId: entry.id,
+              action: "publish",
+              scheduledAt: new Date(action.publish_at),
+            },
           });
-          await audit(tx, { tenantId, userId, action: "schedule", entityType: "entry", entityId: entry.id, diff: action.fields });
+          await audit(tx, {
+            tenantId,
+            userId,
+            action: "schedule",
+            entityType: "entry",
+            entityId: entry.id,
+            diff: action.fields,
+          });
           return { entry };
         }
         case "UPDATE": {
-          if (!action.match.entry_id) throw badRequest("UPDATE needs match.entry_id (resolve on client)");
+          if (!action.match.entry_id)
+            throw badRequest("UPDATE needs match.entry_id (resolve on client)");
           const entry = await updateEntry(tx, {
-            tenantId, entryId: action.match.entry_id, data: action.fields, userId,
+            tenantId,
+            entryId: action.match.entry_id,
+            data: action.fields,
+            userId,
           });
-          await audit(tx, { tenantId, userId, action: "update", entityType: "entry", entityId: entry.id, diff: action.fields });
+          await audit(tx, {
+            tenantId,
+            userId,
+            action: "update",
+            entityType: "entry",
+            entityId: entry.id,
+            diff: action.fields,
+          });
           return { entry };
         }
         case "BULK_UPDATE": {
@@ -152,17 +193,33 @@ const routes: FastifyPluginAsync = async (app) => {
           const matching = entries.filter((e) => matchesWhere(e.data as any, action.where));
           for (const e of matching) {
             await updateEntry(tx, {
-              tenantId, entryId: e.id, data: { ...(e.data as object), ...action.set }, userId,
+              tenantId,
+              entryId: e.id,
+              data: { ...(e.data as object), ...action.set },
+              userId,
               changeSummary: `bulk: ${JSON.stringify(action.where)}`,
             });
           }
-          await audit(tx, { tenantId, userId, action: "bulk_update", entityType: "module", entityId: mod.id, diff: { where: action.where, set: action.set, count: matching.length } });
+          await audit(tx, {
+            tenantId,
+            userId,
+            action: "bulk_update",
+            entityType: "module",
+            entityId: mod.id,
+            diff: { where: action.where, set: action.set, count: matching.length },
+          });
           return { updated: matching.length };
         }
         case "DELETE": {
           if (!action.match.entry_id) throw badRequest("DELETE needs match.entry_id");
           await tx.entry.delete({ where: { id: action.match.entry_id } });
-          await audit(tx, { tenantId, userId, action: "delete", entityType: "entry", entityId: action.match.entry_id });
+          await audit(tx, {
+            tenantId,
+            userId,
+            action: "delete",
+            entityType: "entry",
+            entityId: action.match.entry_id,
+          });
           return { deleted: action.match.entry_id };
         }
         case "DUPLICATE": {
@@ -170,7 +227,9 @@ const routes: FastifyPluginAsync = async (app) => {
           const src = await tx.entry.findUnique({ where: { id: action.source.entry_id } });
           if (!src) throw notFound();
           const entry = await createEntry(tx, {
-            tenantId, moduleId: mod.id, userId,
+            tenantId,
+            moduleId: mod.id,
+            userId,
             data: { ...(src.data as object), ...action.changes },
           });
           return { entry };
@@ -204,7 +263,7 @@ const routes: FastifyPluginAsync = async (app) => {
     });
     const result = await simulateBot({
       botSystemPrompt:
-        "You are Jasoomy, the Future Kid customer bot. Answer using only the provided KB. Be warm and concise.",
+        "You are Fai, the Flare Fitness customer bot. Answer using only the provided KB. Be warm and concise.",
       kbSnapshot: snapshot,
       userQuestion: body.question,
       locale: body.locale,

@@ -11,15 +11,15 @@
  *  - rollback restores the prior snapshot and bumps version counter
  *  - unknown module slug returns 404
  *
- * Seed dependency: `pnpm seed` must have run; uses the `future-kid` tenant,
- * `sara@example.com` / `password1`, and the `faqs` module.
+ * Seed dependency: `pnpm seed` must have run; uses the `flare-fitness` tenant,
+ * `bayan@example.com` / `password1`, and the `faqs` module.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../server.js";
 
-const TENANT = "future-kid";
-const EMAIL = "sara@example.com";
+const TENANT = "flare-fitness";
+const EMAIL = "bayan@example.com";
 const PASSWORD = "password1";
 const MODULE = "faqs";
 
@@ -72,8 +72,8 @@ describe("entries routes", () => {
   it("creates an entry and round-trips on read", async () => {
     const payload = {
       data: {
-        question_en: "What are the Future Kid opening hours?",
-        question_ar: "ما هي ساعات عمل فيوتشر كيد؟",
+        question_en: "What are the Flare Fitness opening hours?",
+        question_ar: "ما هي ساعات عمل فلير فيتنس؟",
         answer_en: "We are open 9 to 9 daily.",
         answer_ar: "نعمل من 9 إلى 9 يوميا.",
         category: "hours",

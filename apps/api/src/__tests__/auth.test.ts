@@ -9,15 +9,15 @@
  *  - zod rejects malformed bodies (400)
  *  - rate limit kicks in past 5 attempts in 5 minutes
  *
- * Seed dependency: `pnpm seed` must have run; relies on the `future-kid` tenant
- * with `sara@example.com` / `password1`.
+ * Seed dependency: `pnpm seed` must have run; relies on the `flare-fitness` tenant
+ * with `bayan@example.com` / `password1`.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../server.js";
 
-const TENANT = "future-kid";
-const VALID_EMAIL = "sara@example.com";
+const TENANT = "flare-fitness";
+const VALID_EMAIL = "bayan@example.com";
 const VALID_PASSWORD = "password1";
 
 describe("POST /api/v1/auth/login", () => {
